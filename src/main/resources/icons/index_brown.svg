@@ -1,0 +1,16 @@
+<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="vector-effect: non-scaling-stroke;">
+
+ <g>
+  <title>background</title>
+  <rect fill="none" id="canvas_background" height="402" width="582" y="-1" x="-1"/>
+ </g>
+ <g>
+  <title>Layer 1</title>
+  <g id="svg_1" fill-rule="evenodd" fill="none">
+   <polygon id="svg_2" points="2 8 15 8 15 7 2 7" fill="#9AA7B0"/>
+   <polygon id="svg_3" points="2 11 15 11 15 10 2 10" fill="#9AA7B0"/>
+   <path id="svg_4" d="m11,13l3,0l0,-8l-3,0l0,8zm-5,0l4,0l0,-8l-4,0l0,8zm-4,0l3,0l0,-8l-3,0l0,8zm-1,1l14,0l0,-12l-14,0l0,12z" fill="#9AA7B0"/>
+  </g>
+  <image xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAAeGVYSWZNTQAqAAAACAAFARIAAwAAAAEAAQAAARoABQAAAAEAAABKARsABQAAAAEAAABSASgAAwAAAAEAAgAAh2kABAAAAAEAAABaAAAAAAAAAEgAAAABAAAASAAAAAEAAqACAAQAAAABAAAADKADAAQAAAABAAAADAAAAACv/h/sAAAACXBIWXMAAAsTAAALEwEAmpwYAAABWWlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iWE1QIENvcmUgNS40LjAiPgogICA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPgogICAgICA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIgogICAgICAgICAgICB4bWxuczp0aWZmPSJodHRwOi8vbnMuYWRvYmUuY29tL3RpZmYvMS4wLyI+CiAgICAgICAgIDx0aWZmOk9yaWVudGF0aW9uPjE8L3RpZmY6T3JpZW50YXRpb24+CiAgICAgIDwvcmRmOkRlc2NyaXB0aW9uPgogICA8L3JkZjpSREY+CjwveDp4bXBtZXRhPgpMwidZAAABp0lEQVQoFW2Sv2sbUQzHpXsv7bUHlxJKUmiddvBQPIRiL/WUwYZkCYaCBy8ZSldvyV/RsVvJ1MWDp5AlgWYqdLMJHY5sgaTFCf5x9jlnP/vejzwdOJQQwQNJ95H0PSGsArAmgAJrOwD1D9VybeXV6xzFg+t/wVnzZ+MI4BvFxCI51l7ubxdOSpVKfi2zDg5fAmOTRiZwc3UJp4eH7a/HrS2b6jGi90q5X9ufKnlv2Re34yHEowFOxiHMRKyee8/mb99lMquiV/590f3Odt9A/WN58zMwEP3OX3cyCh0L4yQKMR4OnGG3w5VOxAvfy/hXwYCvZrM1EYcQRX2OgKmUhU6SRb4Bw58wB4jlBmSue90BrQ0j4DGzRcxxqJnMcTlPYDqdglIGcNH6QZWxnZjdD7E8SZJASyxKZWi1/AG7CBUaTFkupvOG50Ix0SCNMY8WIKJEBSmbiviy4bd8j+eFMsL+IrcS0nVbiXYqSpehG8WyffAnKjg086YXbYW3szbT0gWtuFYK6ZFPOfpGDLH4/2nsvn9aR+bUbOf0NOykwCjd+HE+uz+NO8PMy2V2nSNLAAAAAElFTkSuQmCC" id="svg_9" height="6" width="6" y="10" x="10"/>
+ </g>
+</svg>

@@ -1,0 +1,16 @@
+<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="vector-effect: non-scaling-stroke;">
+
+ <g>
+  <title>background</title>
+  <rect fill="none" id="canvas_background" height="402" width="582" y="-1" x="-1"/>
+ </g>
+ <g>
+  <title>Layer 1</title>
+  <g id="svg_1" fill-rule="evenodd" fill="none">
+   <polygon id="svg_2" points="2 8 15 8 15 7 2 7" fill="#9AA7B0"/>
+   <polygon id="svg_3" points="2 11 15 11 15 10 2 10" fill="#9AA7B0"/>
+   <path id="svg_4" d="m11,13l3,0l0,-8l-3,0l0,8zm-5,0l4,0l0,-8l-4,0l0,8zm-4,0l3,0l0,-8l-3,0l0,8zm-1,1l14,0l0,-12l-14,0l0,12z" fill="#9AA7B0"/>
+  </g>
+  <image xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAAeGVYSWZNTQAqAAAACAAFARIAAwAAAAEAAQAAARoABQAAAAEAAABKARsABQAAAAEAAABSASgAAwAAAAEAAgAAh2kABAAAAAEAAABaAAAAAAAAAEgAAAABAAAASAAAAAEAAqACAAQAAAABAAAADKADAAQAAAABAAAADAAAAACv/h/sAAAACXBIWXMAAAsTAAALEwEAmpwYAAABWWlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iWE1QIENvcmUgNS40LjAiPgogICA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPgogICAgICA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIgogICAgICAgICAgICB4bWxuczp0aWZmPSJodHRwOi8vbnMuYWRvYmUuY29tL3RpZmYvMS4wLyI+CiAgICAgICAgIDx0aWZmOk9yaWVudGF0aW9uPjE8L3RpZmY6T3JpZW50YXRpb24+CiAgICAgIDwvcmRmOkRlc2NyaXB0aW9uPgogICA8L3JkZjpSREY+CjwveDp4bXBtZXRhPgpMwidZAAABgElEQVQoFW2Sv0sDMRTH3+UiXgui2E4tFRFxKOJwBdGpY6eKLkLBycGtf42bg5NQcFFsF8dOitCb5DbbYrFSuZaqw/1okvO9oEWqgXdJvu/zXr45YlwCmIcAEnDcAFSzxWIlkcnkae/3++5Ls1nbAzilPbEGLU4A0seb+dvtctk2cjmUTZKxjYS414OHet05f3RLZwCeLrhbW23t7JdttbgUiCDgSgpdwUwuuWUJ9j627q/rzm67W+ANtLG1sW77g0EQdjoWo+66DZ4QAxZLPp9MBsQ02t0qX85mKnI0At/zeGz8kNrQ9BPFMU8wBsRyJmR+/PoGE3Q+Jf4uzBA1YnmkFPjRhAr0mD0j/tYFzsQyH8CVaCWEWFKXYCZIoxwxxLIPpWroEaIYRIDzf0E5YojVDq7S6daKadqfSgVogWPo+2BSYogFxqxnKZ0DzyswPBGewrDUFcKZMwwLBa7wx1LQmjTKEUOs8ftpXKRS1XmACoL6aWCRi3eoHQ2H06fxBes3wOt8A0K7AAAAAElFTkSuQmCC" id="svg_7" height="6" width="6" y="10" x="10"/>
+ </g>
+</svg>

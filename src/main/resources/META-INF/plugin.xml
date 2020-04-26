@@ -1,0 +1,44 @@
+<!--
+  ~ Copyright 2020 Anton Shuvaev
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<idea-plugin>
+    <id>org.elasticsearch4idea</id>
+    <name>Elasticsearch Integration</name>
+    <vendor email="anton.shuvaev91@gmail.com">Anton Shuvaev</vendor>
+
+    <description><![CDATA[
+    <div xmlns="http://www.w3.org/1999/html">
+        <p>
+             This plugin allows accessing to Elasticsearch cluster and performing operations on indexes by REST API.<br>
+        </p>
+    </div>
+]]> </description>
+
+    <change-notes><![CDATA[
+<a href="https://github.com/AntonShuvaev/elasticsearch4idea/blob/master/CHANGELOG.md">Changelog</a>
+]]> </change-notes>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="Elasticsearch" anchor="right" icon="/icons/logo-elasticsearch-13.svg"
+                    factoryClass="org.elasticsearch4idea.ui.explorer.ElasticsearchToolWindowFactory"/>
+        <virtualFileSystem key="elasticsearch"
+                           implementationClass="org.elasticsearch4idea.ui.editor.ElasticsearchFileSystem"/>
+        <fileEditorProvider implementation="org.elasticsearch4idea.ui.editor.ElasticsearchEditorProvider"/>
+    </extensions>
+
+</idea-plugin>

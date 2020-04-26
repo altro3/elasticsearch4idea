@@ -1,0 +1,171 @@
+/*
+ * Copyright 2020 Anton Shuvaev
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.elasticsearch4idea.ui.editor.views
+
+import com.intellij.find.editorHeaderActions.Utils
+import com.intellij.openapi.Disposable
+import com.intellij.openapi.actionSystem.*
+import com.intellij.openapi.actionSystem.impl.ActionToolbarImpl
+import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.components.service
+import com.intellij.openapi.keymap.KeymapUtil
+import com.intellij.openapi.progress.ProgressIndicator
+import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.progress.Task.Backgroundable
+import com.intellij.openapi.project.DumbAwareAction
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.ComboBox
+import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.ui.Splitter
+import com.intellij.ui.EnumComboBoxModel
+import com.intellij.ui.SearchTextField
+import com.intellij.util.ui.JBUI
+import com.intellij.util.ui.UIUtil
+import com.intellij.util.ui.components.BorderLayoutPanel
+import org.apache.http.client.utils.URIBuilder
+import org.elasticsearch4idea.model.Method
+import org.elasticsearch4idea.model.Request
+import org.elasticsearch4idea.model.ViewMode
+import org.elasticsearch4idea.service.ElasticsearchConfiguration
+import org.elasticsearch4idea.service.ElasticsearchManager
+import org.elasticsearch4idea.ui.editor.ElasticsearchFile
+import org.elasticsearch4idea.ui.editor.actions.ExecuteQueryAction
+import org.elasticsearch4idea.ui.editor.actions.ViewAsActionGroup
+import java.awt.BorderLayout
+import javax.swing.JPanel
+
+class ElasticsearchPanel(
+    private val project: Project,
+    private val elasticsearchFile: ElasticsearchFile
+) : JPanel(), Disposable {
+
+    private val bodyPanel: BodyPanel
+    private val resultPanel: ResultPanel
+
+    private val methodCombo = ComboBox(EnumComboBoxModel(Method::class.java), 85)
+    private val urlField = UrlField()
+    private val elasticsearchConfiguration = project.service<ElasticsearchConfiguration>()
+
+    init {
+        layout = BorderLayout()
+        bodyPanel = BodyPanel(project)
+        resultPanel = ResultPanel(project, elasticsearchConfiguration.viewMode)
+
+        initUrlComponent()
+        val toolbar = createToolbarPanel()
+        add(toolbar, BorderLayout.NORTH)
+
+        bodyPanel.updateQueryView(elasticsearchFile.request.body)
+        methodCombo.selectedItem = elasticsearchFile.request.method
+        urlField.text = elasticsearchFile.request.urlPath
+
+        val splitter = Splitter(true, 0.2f)
+        splitter.firstComponent = bodyPanel
+        splitter.secondComponent = resultPanel
+        add(splitter, BorderLayout.CENTER)
+    }
+
+    private fun initUrlComponent() {
+        val textComponent = urlField.textEditor
+
+        UIUtil.addUndoRedoActions(textComponent)
+
+        textComponent.background = UIUtil.getTextFieldBackground()
+        textComponent.border = JBUI.Borders.empty()
+
+        object : DumbAwareAction() {
+            override fun actionPerformed(e: AnActionEvent) {
+            }
+        }.registerCustomShortcutSet(KeymapUtil.getActiveKeymapShortcuts(IdeActions.ACTION_EDITOR_ESCAPE), urlField)
+
+    }
+
+    private fun createToolbarPanel(): JPanel {
+        val group = DefaultActionGroup()
+        group.add(ExecuteQueryAction(this))
+        group.add(ViewAsActionGroup(this, project))
+        val actionToolBar = ActionManager.getInstance()
+            .createActionToolbar("ElasticsearchQueryToolBar", group, true) as ActionToolbarImpl
+        actionToolBar.setTargetComponent(this)
+        actionToolBar.layoutPolicy = ActionToolbar.AUTO_LAYOUT_POLICY
+        Utils.setSmallerFontForChildren(actionToolBar)
+
+        urlField.border = JBUI.Borders.empty(2, 0)
+        val panel = BorderLayoutPanel()
+        panel.add(methodCombo, BorderLayout.WEST)
+        panel.add(urlField, BorderLayout.CENTER)
+        panel.add(actionToolBar.component, BorderLayout.EAST)
+        return panel
+    }
+
+    fun executeQuery() {
+        ProgressManager.getInstance().run(object : Backgroundable(project, "Execute request") {
+            override fun run(indicator: ProgressIndicator) {
+                try {
+                    val elasticsearchManager = project.service<ElasticsearchManager>()
+                    val url = URIBuilder(elasticsearchFile.cluster.host)
+                        .setPath(urlField.text)
+                        .toString()
+                    val request = Request(url, bodyPanel.getBody(), methodCombo.selectedItem as Method)
+                    val response = elasticsearchManager.executeRequest(request, elasticsearchFile.cluster)
+
+                    WriteCommandAction.runWriteCommandAction(project) {
+                        UIUtil.invokeLaterIfNeeded {
+                            resultPanel.updateResult(response.content)
+                        }
+                    }
+                } catch (ex: Exception) {
+                    UIUtil.invokeLaterIfNeeded {
+                        Messages.showErrorDialog(ex.message, "Error")
+                    }
+                }
+            }
+        })
+    }
+
+    fun showResults() {
+        executeQuery()
+    }
+
+    fun getResultPanel(): ResultPanel {
+        return resultPanel
+    }
+
+    override fun dispose() {
+        resultPanel.dispose()
+        bodyPanel.dispose()
+    }
+
+    fun setViewMode(viewMode: ViewMode) {
+        if (resultPanel.getCurrentViewMode() == viewMode) {
+            return
+        }
+        resultPanel.setCurrentViewMode(viewMode)
+        executeQuery()
+    }
+
+    internal class UrlField : SearchTextField() {
+        init {
+            border = JBUI.Borders.empty()
+        }
+
+        override fun toClearTextOnEscape(): Boolean {
+            return false
+        }
+
+    }
+
+}
