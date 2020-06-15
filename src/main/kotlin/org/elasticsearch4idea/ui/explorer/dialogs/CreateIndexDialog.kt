@@ -28,7 +28,7 @@ class CreateIndexDialog(parent: ElasticsearchExplorer) : DialogWrapper(parent, t
 
     var indexName = ""
     var numberOfShards = "1"
-    var numberOfReplicas = "1"
+    var numberOfReplicas = "0"
 
     init {
         title = "New Index"
@@ -43,13 +43,13 @@ class CreateIndexDialog(parent: ElasticsearchExplorer) : DialogWrapper(parent, t
         }
         row("Number of shards:") {
             textField({ numberOfShards }, { numberOfShards = it }, 20)
-                .withValidationOnInput(validateNumber("Number of shards"))
-                .withValidationOnApply(validateNumber("Number of shards"))
+                .withValidationOnInput(validateNumberOfShards())
+                .withValidationOnApply(validateNumberOfShards())
         }
         row("Number of replicas:") {
             textField({ numberOfReplicas }, { numberOfReplicas = it }, 20)
-                .withValidationOnInput(validateNumber("Number of replicas"))
-                .withValidationOnApply(validateNumber("Number of replicas"))
+                .withValidationOnInput(validateNumberOfReplicas())
+                .withValidationOnApply(validateNumberOfReplicas())
         }
     }
 
@@ -69,11 +69,22 @@ class CreateIndexDialog(parent: ElasticsearchExplorer) : DialogWrapper(parent, t
         }
     }
 
-    private fun validateNumber(fieldName: String): ValidationInfoBuilder.(JBTextField) -> ValidationInfo? {
+    private fun validateNumberOfShards(): ValidationInfoBuilder.(JBTextField) -> ValidationInfo? {
         return {
             val number = it.text.toIntOrNull()
             if (number == null || number <= 0) {
-                this.error("$fieldName must be positive number")
+                this.error("Number of shards must be positive number")
+            } else {
+                null
+            }
+        }
+    }
+
+    private fun validateNumberOfReplicas(): ValidationInfoBuilder.(JBTextField) -> ValidationInfo? {
+        return {
+            val number = it.text.toIntOrNull()
+            if (number == null || number < 0) {
+                this.error("Number of replicas must be non-negative number")
             } else {
                 null
             }

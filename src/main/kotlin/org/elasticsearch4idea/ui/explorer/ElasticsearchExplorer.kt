@@ -283,7 +283,7 @@ class ElasticsearchExplorer(
     fun openQueryEditorForIndex() {
         val index = getSelectedIndex()
         if (index != null) {
-            val body = "{\n  \"from\": 0,\n  \"size\": 10,\n  \"query\": {\n    \"match_all\": {}\n  }\n}"
+            val body = "{\n  \"from\": 0,\n  \"size\": 20,\n  \"query\": {\n    \"match_all\": {}\n  }\n}"
             val request = Request("/${index.name}/_search", body, Method.POST)
             openQueryEditor(index.cluster, request)
         }
