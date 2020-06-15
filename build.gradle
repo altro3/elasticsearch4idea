@@ -20,7 +20,7 @@ plugins {
 }
 
 group 'org.elasticsearch4idea'
-version '0.1.0-SNAPSHOT'
+version '0.1.0'
 
 repositories {
     mavenCentral()
@@ -33,6 +33,7 @@ dependencies {
 intellij {
     version '2020.1.2'
     pluginName 'elasticsearch4idea'
+    updateSinceUntilBuild false
 }
 compileKotlin {
     kotlinOptions.jvmTarget = "1.8"
@@ -41,9 +42,6 @@ compileTestKotlin {
     kotlinOptions.jvmTarget = "1.8"
 }
 patchPluginXml {
-    changeNotes """
-      Add change notes here.<br>
-      <em>most HTML tags may be used</em>"""
 }
 
 runIde {

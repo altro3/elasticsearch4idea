@@ -15,6 +15,7 @@
   -->
 
 <idea-plugin>
+    <idea-version since-build="201.0"/>
     <id>org.elasticsearch4idea</id>
     <name>Elasticsearch Integration</name>
     <vendor email="anton.shuvaev91@gmail.com">Anton Shuvaev</vendor>
@@ -23,6 +24,10 @@
     <div xmlns="http://www.w3.org/1999/html">
         <p>
              This plugin allows accessing to Elasticsearch cluster and performing operations on indexes by REST API.<br>
+        </p>
+        <p>
+             <a href="https://github.com/AntonShuvaev/elasticsearch4idea">Github</a>
+             |<a href="https://github.com/AntonShuvaev/elasticsearch4idea/issues">Issues Tracker</a>
         </p>
     </div>
 ]]> </description>
