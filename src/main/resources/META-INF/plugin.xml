@@ -17,7 +17,7 @@
 <idea-plugin>
     <idea-version since-build="201.0"/>
     <id>org.elasticsearch4idea</id>
-    <name>Elasticsearch Integration</name>
+    <name>Elasticsearch Plugin</name>
     <vendor email="anton.shuvaev91@gmail.com">Anton Shuvaev</vendor>
 
     <description><![CDATA[
