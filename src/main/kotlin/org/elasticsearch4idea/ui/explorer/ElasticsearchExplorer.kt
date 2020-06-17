@@ -27,7 +27,7 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
-import com.intellij.openapi.progress.Task.Backgroundable
+import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.SimpleToolWindowPanel
 import com.intellij.openapi.ui.Splitter
@@ -52,7 +52,6 @@ import org.elasticsearch4idea.ui.editor.ElasticsearchFile
 import org.elasticsearch4idea.ui.editor.ElasticsearchFileSystem
 import org.elasticsearch4idea.ui.explorer.actions.*
 import org.elasticsearch4idea.ui.explorer.table.ElasticsearchInfosTable
-import org.elasticsearch4idea.ui.explorer.table.TableEntry
 import org.elasticsearch4idea.ui.explorer.tree.ClusterNodeDescriptor
 import org.elasticsearch4idea.ui.explorer.tree.ElasticsearchExplorerTreeStructure
 import org.elasticsearch4idea.ui.explorer.tree.IndexNodeDescriptor
@@ -94,7 +93,7 @@ class ElasticsearchExplorer(
         setContent(splitter)
 
         ProgressManager.getInstance()
-            .run(object : Backgroundable(project, "Getting Elasticsearch cluster info", false) {
+            .run(object : Task.Backgroundable(project, "Getting Elasticsearch cluster info", false) {
                 override fun run(indicator: ProgressIndicator) {
                     elasticsearchManager.fetchAllClusters()
                 }
@@ -153,22 +152,38 @@ class ElasticsearchExplorer(
     }
 
     fun updateNodeInfo() {
+        ApplicationManager.getApplication().invokeLater {
+            table.updateInfos(emptyList())
+        }
         val cluster = this.getSelectedCluster()
         val index = this.getSelectedIndex()
-        ProgressManager.getInstance().run {
-            var infos: List<TableEntry>? = null
-            if (cluster != null) {
-                infos = elasticsearchManager.getClusterInfo(cluster)?.toTableEntryList()
-            } else {
-                if (index != null) {
-                    infos = elasticsearchManager.getIndexInfo(index)?.toTableEntryList()
-                }
-            }
-            if (infos != null) {
-                ApplicationManager.getApplication().invokeLater {
-                    table.updateInfos(infos)
-                }
-            }
+        if (cluster == null && index == null) {
+            return
+        }
+        if (cluster != null) {
+            ProgressManager.getInstance()
+                .run(object : Task.Backgroundable(project, "Getting Elasticsearch cluster info", false) {
+                    override fun run(indicator: ProgressIndicator) {
+                        val infos = elasticsearchManager.getClusterInfo(cluster)?.toTableEntryList()
+                        if (infos != null) {
+                            ApplicationManager.getApplication().invokeLater {
+                                table.updateInfos(infos)
+                            }
+                        }
+                    }
+                })
+        } else {
+            ProgressManager.getInstance()
+                .run(object : Task.Backgroundable(project, "Getting Elasticsearch index info", false) {
+                    override fun run(indicator: ProgressIndicator) {
+                        val infos = elasticsearchManager.getIndexInfo(index!!)?.toTableEntryList()
+                        if (infos != null) {
+                            ApplicationManager.getApplication().invokeLater {
+                                table.updateInfos(infos)
+                            }
+                        }
+                    }
+                })
         }
     }
 

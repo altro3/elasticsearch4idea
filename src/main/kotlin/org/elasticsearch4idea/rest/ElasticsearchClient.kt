@@ -28,10 +28,11 @@ import org.apache.http.HttpHeaders
 import org.apache.http.HttpHost
 import org.apache.http.HttpResponse
 import org.apache.http.client.ResponseHandler
+import org.apache.http.client.config.RequestConfig
 import org.apache.http.client.methods.*
 import org.apache.http.entity.StringEntity
 import org.apache.http.impl.client.CloseableHttpClient
-import org.apache.http.impl.client.HttpClients
+import org.apache.http.impl.client.HttpClientBuilder
 import org.elasticsearch4idea.model.Method
 import org.elasticsearch4idea.model.Request
 import org.elasticsearch4idea.model.Response
@@ -39,11 +40,17 @@ import org.elasticsearch4idea.rest.model.*
 import java.io.BufferedReader
 import java.io.InputStream
 
+
 @Service
 class ElasticsearchClient(project: Project) : Disposable {
 
     private val httpClient: CloseableHttpClient by lazy {
-        HttpClients.createDefault()
+        val config = RequestConfig.custom()
+            .setConnectTimeout(5_000)
+            .build()
+        HttpClientBuilder.create()
+            .setDefaultRequestConfig(config)
+            .build()
     }
 
     fun getIndexInfo(httpHost: HttpHost, headers: List<Header>, index: String): IndexInfo {
