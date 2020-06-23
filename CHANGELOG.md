@@ -1,6 +1,11 @@
 Change Log
 ----------
 
+## Version 0.1.4
+
+- \#2 Support SSL
+
+
 ## Version 0.1.3
 
 - \#1 Fix freezing when trying to connect to unreachable server

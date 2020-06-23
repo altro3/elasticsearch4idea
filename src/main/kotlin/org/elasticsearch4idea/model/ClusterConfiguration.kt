@@ -22,7 +22,8 @@ import java.util.*
 class ClusterConfiguration(
     val label: String,
     val url: String,
-    val credentials: Credentials?
+    val credentials: Credentials?,
+    val sslConfig: SSLConfig?
 ) {
 
     fun getHttpHost(): HttpHost = url.let(HttpHost::create)
@@ -35,4 +36,12 @@ class ClusterConfiguration(
             return "Basic " + Base64.getEncoder().encodeToString("$user:$password".toByteArray())
         }
     }
+
+    class SSLConfig(
+        val trustStorePath: String?,
+        val keyStorePath: String?,
+        val trustStorePassword: String?,
+        val keyStorePassword: String?
+    )
+    
 }

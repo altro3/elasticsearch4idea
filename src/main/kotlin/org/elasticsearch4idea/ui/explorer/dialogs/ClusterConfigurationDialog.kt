@@ -16,6 +16,8 @@
 package org.elasticsearch4idea.ui.explorer.dialogs
 
 import com.intellij.openapi.components.service
+import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
+import com.intellij.openapi.fileChooser.PathChooserDialog
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogPanel
@@ -24,19 +26,16 @@ import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.openapi.util.Ref
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.components.JBTextField
 import com.intellij.ui.layout.PropertyBinding
 import com.intellij.ui.layout.ValidationInfoBuilder
 import com.intellij.ui.layout.panel
 import com.intellij.ui.layout.withTextBinding
 import icons.Icons
-import org.apache.http.Header
-import org.apache.http.HttpHeaders
-import org.apache.http.HttpHost
-import org.apache.http.message.BasicHeader
 import org.elasticsearch4idea.model.ClusterConfiguration
-import org.elasticsearch4idea.rest.ElasticsearchClient
 import org.elasticsearch4idea.service.ElasticsearchConfiguration
+import org.elasticsearch4idea.service.ElasticsearchManager
 import org.elasticsearch4idea.ui.explorer.ElasticsearchExplorer
 import java.awt.Dimension
 import java.awt.event.ActionEvent
@@ -50,30 +49,64 @@ class ClusterConfigurationDialog(
 ) : DialogWrapper(parent, true) {
 
     private val elasticsearchConfiguration = project.service<ElasticsearchConfiguration>()
-    private val elasticsearchClient = project.service<ElasticsearchClient>()
+    private val elasticsearchManager = project.service<ElasticsearchManager>()
     private val dialogPanel: DialogPanel
     private val feedbackLabel: JBLabel = JBLabel()
     private val urlField: JBTextField = JBTextField()
     private val passwordField: JPasswordField = JPasswordField()
+    private val truststorePasswordField: JPasswordField = JPasswordField()
+    private val keystorePasswordField: JPasswordField = JPasswordField()
+    private val tabbedPane: JBTabbedPane = JBTabbedPane(1)
+    private val generalPanel: DialogPanel
+    private val sslPanel: DialogPanel
 
     private val previousName = if (editing) previousConfiguration?.label else null
     private var name = previousConfiguration?.label ?: "@localhost"
     private var url = previousConfiguration?.url ?: "http://localhost:9200"
     private var user = previousConfiguration?.credentials?.user ?: ""
     private var password = previousConfiguration?.credentials?.password ?: ""
+    private var trustStorePath = previousConfiguration?.sslConfig?.trustStorePath ?: ""
+    private var keyStorePath = previousConfiguration?.sslConfig?.keyStorePath ?: ""
+    private var trustStorePassword = previousConfiguration?.sslConfig?.trustStorePassword ?: ""
+    private var keyStorePassword = previousConfiguration?.sslConfig?.keyStorePassword ?: ""
 
     init {
         feedbackLabel.isVisible = false
         feedbackLabel.maximumSize = Dimension(400, 20)
         urlField.text = url
         passwordField.text = password
+        truststorePasswordField.text = trustStorePassword
+        keystorePasswordField.text = keyStorePassword
+        generalPanel = createGeneralPanel()
+        sslPanel = createSSLPanel()
+        tabbedPane.addTab("General", generalPanel)
+        tabbedPane.addTab("SSL", sslPanel)
         dialogPanel = createDialogPanel()
         init()
     }
 
     private fun createDialogPanel() = panel {
+        row {
+            component(tabbedPane)
+                .withValidationOnApply {
+                    validateTabs()
+                }
+        }
+        row {
+            button("Test Connection", ::testConnection)
+        }
+        row {
+            feedbackLabel()
+        }
+        onGlobalApply {
+            generalPanel.apply()
+            sslPanel.apply()
+        }
+    }
+
+    private fun createGeneralPanel() = panel {
         row("Name:") {
-            textField({ name }, { name = it }, 30)
+            textField({ name }, { name = it })
                 .withValidationOnInput(validateName())
                 .withValidationOnApply(validateName())
                 .focused()
@@ -91,12 +124,49 @@ class ClusterConfigurationDialog(
             passwordField()
                 .withTextBinding(PropertyBinding({ password }, { password = it }))
         }
-        row {
-            button("Test Connection", ::testConnection)
+    }
+
+    private fun createSSLPanel() = panel {
+        row("Truststore:") {
+            textFieldWithBrowseButton(PropertyBinding({ trustStorePath }, { trustStorePath = it }),
+                fileChooserDescriptor = FileChooserDescriptorFactory.createSingleFileDescriptor(".p12")
+                    .also { it.putUserData(PathChooserDialog.PREFER_LAST_OVER_EXPLICIT, false) }
+            )
         }
-        row {
-            feedbackLabel()
+        row("Truststore password:") {
+            truststorePasswordField()
+                .withTextBinding(PropertyBinding({ trustStorePassword }, { trustStorePassword = it }))
         }
+        row("Keystore:") {
+            textFieldWithBrowseButton(PropertyBinding({ keyStorePath }, { keyStorePath = it }),
+                fileChooserDescriptor = FileChooserDescriptorFactory.createSingleFileDescriptor(".p12")
+                    .also { it.putUserData(PathChooserDialog.PREFER_LAST_OVER_EXPLICIT, false) }
+            )
+        }
+        row("Keystore password:") {
+            keystorePasswordField()
+                .withTextBinding(PropertyBinding({ keyStorePassword }, { keyStorePassword = it }))
+        }
+    }
+
+    private fun validateTabs(): ValidationInfo? {
+        var valInfo: ValidationInfo? = generalPanel.componentValidateCallbacks.values.asSequence()
+            .map { it.invoke() }
+            .filterNotNull()
+            .firstOrNull()
+        if (valInfo != null) {
+            tabbedPane.selectedIndex = 0
+            return valInfo
+        }
+        valInfo = sslPanel.componentValidateCallbacks.values.asSequence()
+            .map { it.invoke() }
+            .filterNotNull()
+            .firstOrNull()
+        if (valInfo != null) {
+            tabbedPane.selectedIndex = 1
+            return valInfo
+        }
+        return null
     }
 
     override fun createCenterPanel() = dialogPanel
@@ -109,16 +179,10 @@ class ClusterConfigurationDialog(
             if (progressIndicator != null) {
                 progressIndicator.text = "Connecting to Elasticsearch cluster..."
             }
-            dialogPanel.apply()
+            generalPanel.apply()
+            sslPanel.apply()
             try {
-                if (url.isBlank()) {
-                    throw java.lang.IllegalArgumentException("URL must be set")
-                } else {
-                    val basicAuthHeader =
-                        getCredentials()?.let { BasicHeader(HttpHeaders.AUTHORIZATION, it.toBasicAuthHeader()) }
-                    val headers = if (basicAuthHeader == null) emptyList<Header>() else listOf(basicAuthHeader)
-                    elasticsearchClient.getClusterInfo(HttpHost.create(urlField.text), headers)
-                }
+                elasticsearchManager.testConnection(getConfiguration())
             } catch (ex: Exception) {
                 excRef.set(ex)
             }
@@ -175,7 +239,7 @@ class ClusterConfigurationDialog(
     }
 
     fun getConfiguration(): ClusterConfiguration {
-        return ClusterConfiguration(name, url, getCredentials())
+        return ClusterConfiguration(name, url, getCredentials(), getSSLConfig())
     }
 
     private fun getCredentials(): ClusterConfiguration.Credentials? {
@@ -184,6 +248,13 @@ class ClusterConfigurationDialog(
         } else {
             null
         }
+    }
+
+    private fun getSSLConfig(): ClusterConfiguration.SSLConfig? {
+        if (trustStorePath.isBlank() && keyStorePath.isBlank()) {
+            return null
+        }
+        return ClusterConfiguration.SSLConfig(trustStorePath, keyStorePath, trustStorePassword, keyStorePassword)
     }
 
 }

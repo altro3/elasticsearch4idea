@@ -23,9 +23,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.util.EventDispatcher
 import com.intellij.util.concurrency.AppExecutorUtil
-import org.apache.http.Header
-import org.apache.http.HttpHeaders
-import org.apache.http.message.BasicHeader
 import org.elasticsearch4idea.model.*
 import org.elasticsearch4idea.rest.ElasticsearchClient
 import org.elasticsearch4idea.ui.ElasticsearchClustersListener
@@ -37,9 +34,9 @@ import java.util.concurrent.TimeUnit
 class ElasticsearchManager(project: Project) : Disposable {
 
     private val clusters: MutableMap<String, ElasticsearchCluster> = ConcurrentHashMap()
+    private val clients: MutableMap<String, ElasticsearchClient> = ConcurrentHashMap()
     private val eventDispatcher: EventDispatcher<ElasticsearchClustersListener> =
         EventDispatcher.create(ElasticsearchClustersListener::class.java)
-    private val elasticsearchClient = project.service<ElasticsearchClient>()
     private val elasticsearchConfiguration = project.service<ElasticsearchConfiguration>()
     private val scheduler = AppExecutorUtil.getAppScheduledExecutorService()
     private var future: Future<*>? = null
@@ -131,17 +128,15 @@ class ElasticsearchManager(project: Project) : Disposable {
     }
 
     private fun createOrUpdateCluster(configuration: ClusterConfiguration): ElasticsearchCluster {
+        clients.remove(configuration.label)?.close()
+        clients.put(configuration.label, ElasticsearchClient(configuration))
         return clusters.getOrPut(configuration.label) { ElasticsearchCluster(configuration.label) }
             .apply { host = configuration.url }
     }
 
     private fun fetchClusterStats(cluster: ElasticsearchCluster): ElasticsearchCluster {
-        val clusterConfig = elasticsearchConfiguration.getConfiguration(cluster.label)!!
         val clusterStats = runSafely {
-            elasticsearchClient.getClusterStats(
-                clusterConfig.getHttpHost(),
-                getHeaders(cluster)
-            )
+            getClient(cluster).getClusterStats()
         }
         cluster.apply {
             status =
@@ -153,15 +148,11 @@ class ElasticsearchManager(project: Project) : Disposable {
     }
 
     private fun fetchIndices(cluster: ElasticsearchCluster, needNotify: Boolean): ElasticsearchCluster {
-        val clusterConfig = elasticsearchConfiguration.getConfiguration(cluster.label)!!
         val indexesByName = cluster.indices.associateBy { it.name }
         cluster.indices.clear()
         cluster.status = ElasticsearchCluster.Status.NOT_LOADED
         runSafely {
-            val indices = elasticsearchClient.getIndices(
-                clusterConfig.getHttpHost(),
-                getHeaders(cluster)
-            )
+            val indices = getClient(cluster).getIndices()
             indices.forEach {
                 val index = indexesByName.getOrDefault(it.name, ElasticsearchIndex(it.name))
                     .apply {
@@ -183,45 +174,33 @@ class ElasticsearchManager(project: Project) : Disposable {
     fun removeCluster(label: String) {
         elasticsearchConfiguration.removeClusterConfiguration(label)
         val cluster = clusters.remove(label)!!
+        clients.remove(label)?.close()
         ApplicationManager.getApplication()
             .invokeLater { eventDispatcher.multicaster.clusterRemoved(cluster) }
     }
 
     fun getClusterInfo(cluster: ElasticsearchCluster): ElasticsearchClusterInfo? {
-        val configuration = elasticsearchConfiguration.getConfiguration(cluster.label)!!
         return runSafely {
-            val clusterStats = elasticsearchClient.getClusterStats(
-                configuration.getHttpHost(),
-                getHeaders(cluster)
-            )
+            val clusterStats = getClient(cluster).getClusterStats()
             ElasticsearchClusterInfo(clusterStats)
         }
     }
 
     fun getIndexInfo(index: ElasticsearchIndex): ElasticsearchIndexInfo? {
-        val configuration = elasticsearchConfiguration.getConfiguration(index.cluster.label)!!
         return runSafely {
-            val indexShortInfo = elasticsearchClient.getIndex(
-                configuration.getHttpHost(),
-                getHeaders(index.cluster),
-                index.name
-            )
-            val indexInfo = elasticsearchClient.getIndexInfo(
-                configuration.getHttpHost(),
-                getHeaders(index.cluster), index.name
-            )
+            val indexShortInfo = getClient(index).getIndex(index.name)
+            val indexInfo = getClient(index).getIndexInfo(index.name)
             ElasticsearchIndexInfo(indexShortInfo, indexInfo)
         }
     }
 
     fun deleteIndex(index: ElasticsearchIndex) {
         runSafely(true) {
-            val response = elasticsearchClient.execute(
+            val response = getClient(index).execute(
                 Request(
                     urlPath = "${index.cluster.host}/${index.name}",
                     method = Method.DELETE
-                ),
-                getHeaders(index.cluster)
+                )
             )
             Messages.showInfoMessage(response.content, "Index '${index.name}' deleted")
         }
@@ -230,7 +209,7 @@ class ElasticsearchManager(project: Project) : Disposable {
 
     fun createIndex(cluster: ElasticsearchCluster, indexName: String, numberOfShards: Int, numberOfReplicas: Int) {
         runSafely(true) {
-            val response = elasticsearchClient.execute(
+            val response = getClient(cluster).execute(
                 Request(
                     urlPath = "${cluster.host}/$indexName",
                     method = Method.PUT,
@@ -242,8 +221,7 @@ class ElasticsearchManager(project: Project) : Disposable {
             }
         }
     }"""
-                ),
-                getHeaders(cluster)
+                )
             )
             Messages.showInfoMessage(response.content, "Index '$indexName' created")
         }
@@ -252,12 +230,11 @@ class ElasticsearchManager(project: Project) : Disposable {
 
     fun createAlias(index: ElasticsearchIndex, alias: String) {
         runSafely(true) {
-            val response = elasticsearchClient.execute(
+            val response = getClient(index).execute(
                 Request(
                     urlPath = "${index.cluster.host}/${index.name}/_alias/$alias",
                     method = Method.PUT
-                ),
-                getHeaders(index.cluster)
+                )
             )
             Messages.showInfoMessage(response.content, "Alias '$alias' created")
         }
@@ -265,12 +242,11 @@ class ElasticsearchManager(project: Project) : Disposable {
 
     fun refreshIndex(index: ElasticsearchIndex) {
         runSafely(true) {
-            val response = elasticsearchClient.execute(
+            val response = getClient(index).execute(
                 Request(
                     urlPath = "${index.cluster.host}/${index.name}/_refresh",
                     method = Method.POST
-                ),
-                getHeaders(index.cluster)
+                )
             )
             Messages.showInfoMessage(response.content, "Index '${index.name}' refreshed")
         }
@@ -278,12 +254,11 @@ class ElasticsearchManager(project: Project) : Disposable {
 
     fun flushIndex(index: ElasticsearchIndex) {
         runSafely(true) {
-            val response = elasticsearchClient.execute(
+            val response = getClient(index).execute(
                 Request(
                     urlPath = "${index.cluster.host}/${index.name}/_flush",
                     method = Method.POST
-                ),
-                getHeaders(index.cluster)
+                )
             )
             Messages.showInfoMessage(response.content, "Index '${index.name}' flushed")
         }
@@ -291,13 +266,12 @@ class ElasticsearchManager(project: Project) : Disposable {
 
     fun forceMergeIndex(index: ElasticsearchIndex, maxNumSegments: Int, onlyExpungeDeletes: Boolean, flush: Boolean) {
         runSafely(true) {
-            val response = elasticsearchClient.execute(
+            val response = getClient(index).execute(
                 Request(
                     urlPath = "${index.cluster.host}/${index.name}/_forcemerge?" +
                             "only_expunge_deletes=$onlyExpungeDeletes&max_num_segments=$maxNumSegments&flush=$flush",
                     method = Method.POST
-                ),
-                getHeaders(index.cluster)
+                )
             )
             Messages.showInfoMessage(response.content, "Force merge '${index.name}' performed")
         }
@@ -305,12 +279,11 @@ class ElasticsearchManager(project: Project) : Disposable {
 
     fun closeIndex(index: ElasticsearchIndex) {
         runSafely(true) {
-            val response = elasticsearchClient.execute(
+            val response = getClient(index).execute(
                 Request(
                     urlPath = "${index.cluster.host}/${index.name}/_close",
                     method = Method.POST
-                ),
-                getHeaders(index.cluster)
+                )
             )
             Messages.showInfoMessage(response.content, "Index '${index.name}' closed")
         }
@@ -319,31 +292,37 @@ class ElasticsearchManager(project: Project) : Disposable {
 
     fun openIndex(index: ElasticsearchIndex) {
         runSafely(true) {
-            val response = elasticsearchClient.execute(
+            val response = getClient(index).execute(
                 Request(
                     urlPath = "${index.cluster.host}/${index.name}/_open",
                     method = Method.POST
-                ),
-                getHeaders(index.cluster)
+                )
             )
             Messages.showInfoMessage(response.content, "Index '${index.name}' opened")
         }
         fetchIndices(index.cluster, true)
     }
 
+    fun testConnection(configuration: ClusterConfiguration) {
+        ElasticsearchClient(configuration).use {
+            it.testConnection()
+        }
+    }
 
     fun executeRequest(request: Request, cluster: ElasticsearchCluster): Response {
-        return elasticsearchClient.execute(request, getHeaders(cluster), false)
+        return getClient(cluster).execute(request, false)
     }
 
-    private fun getHeaders(cluster: ElasticsearchCluster): List<Header> {
-        val basicAuthHeader = getBasicAuthHeader(cluster)
-        return if (basicAuthHeader == null) emptyList() else listOf(basicAuthHeader)
+    private fun getClient(index: ElasticsearchIndex): ElasticsearchClient {
+        return getClient(index.cluster)
     }
 
-    private fun getBasicAuthHeader(cluster: ElasticsearchCluster): Header? {
-        val credentials = elasticsearchConfiguration.getConfiguration(cluster.label)?.credentials ?: return null
-        return BasicHeader(HttpHeaders.AUTHORIZATION, credentials.toBasicAuthHeader())
+    private fun getClient(cluster: ElasticsearchCluster): ElasticsearchClient {
+        return getClient(cluster.label)
+    }
+
+    private fun getClient(label: String): ElasticsearchClient {
+        return clients[label]!!
     }
 
     private fun <R> runSafely(showErrorMessage: Boolean = false, function: () -> R): R? {
@@ -358,6 +337,7 @@ class ElasticsearchManager(project: Project) : Disposable {
     }
 
     override fun dispose() {
+        clients.values.forEach { it.close() }
         future?.cancel(false)
     }
 

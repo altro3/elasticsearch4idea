@@ -20,9 +20,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.MapperFeature
 import com.fasterxml.jackson.databind.PropertyNamingStrategy
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.intellij.openapi.Disposable
-import com.intellij.openapi.components.Service
-import com.intellij.openapi.project.Project
 import org.apache.http.Header
 import org.apache.http.HttpHeaders
 import org.apache.http.HttpHost
@@ -30,46 +27,66 @@ import org.apache.http.HttpResponse
 import org.apache.http.client.ResponseHandler
 import org.apache.http.client.config.RequestConfig
 import org.apache.http.client.methods.*
+import org.apache.http.conn.ssl.NoopHostnameVerifier
 import org.apache.http.entity.StringEntity
 import org.apache.http.impl.client.CloseableHttpClient
 import org.apache.http.impl.client.HttpClientBuilder
+import org.apache.http.message.BasicHeader
+import org.elasticsearch4idea.model.ClusterConfiguration
 import org.elasticsearch4idea.model.Method
 import org.elasticsearch4idea.model.Request
 import org.elasticsearch4idea.model.Response
 import org.elasticsearch4idea.rest.model.*
+import org.elasticsearch4idea.utils.SSLUtils
 import java.io.BufferedReader
+import java.io.Closeable
 import java.io.InputStream
 
+class ElasticsearchClient(clusterConfiguration: ClusterConfiguration) : Closeable {
+    private val httpHost: HttpHost = clusterConfiguration.getHttpHost()
+    private val client: CloseableHttpClient?
+    private var initException: Exception? = null
 
-@Service
-class ElasticsearchClient(project: Project) : Disposable {
+    init {
+        val headers = if (clusterConfiguration.credentials == null) {
+            emptyList<Header>()
+        } else {
+            listOf(BasicHeader(HttpHeaders.AUTHORIZATION, clusterConfiguration.credentials.toBasicAuthHeader()))
+        }
 
-    private val httpClient: CloseableHttpClient by lazy {
         val config = RequestConfig.custom()
             .setConnectTimeout(5_000)
             .build()
-        HttpClientBuilder.create()
-            .setDefaultRequestConfig(config)
-            .build()
+
+        client = try {
+            val sslContext = SSLUtils.createSSLContext(clusterConfiguration.sslConfig)
+            HttpClientBuilder.create()
+                .setDefaultHeaders(headers)
+                .setSSLContext(sslContext)
+                .setSSLHostnameVerifier(NoopHostnameVerifier())
+                .setDefaultRequestConfig(config)
+                .build()
+        } catch (e: Exception) {
+            initException = e
+            null
+        }
     }
 
-    fun getIndexInfo(httpHost: HttpHost, headers: List<Header>, index: String): IndexInfo {
+    fun getIndexInfo(index: String): IndexInfo {
         val request = HttpGet("$httpHost/$index")
-        headers.forEach { request.addHeader(it) }
         return execute(request, ConvertingResponseHandler {
             val jsonNode = objectMapper.readTree(it)
             objectMapper.treeToValue(jsonNode.get(index), IndexInfo::class.java)
         })
     }
 
-    fun getIndex(httpHost: HttpHost, headers: List<Header>, index: String): Index {
-        return getIndices(httpHost, headers, index).first()
+    fun getIndex(index: String): Index {
+        return getIndices(index).first()
     }
 
-    fun getIndices(httpHost: HttpHost, headers: List<Header>, index: String? = null): List<Index> {
+    fun getIndices(index: String? = null): List<Index> {
         val url = if (index == null) "$httpHost/_cat/indices?v" else "$httpHost/_cat/indices/$index?v"
         val request = HttpGet(url)
-        headers.forEach { request.addHeader(it) }
         val table = execute(request, TableDataResponseHandler())
 
         val header = table[0].asSequence()
@@ -94,19 +111,17 @@ class ElasticsearchClient(project: Project) : Disposable {
             }.toList()
     }
 
-    fun getClusterInfo(httpHost: HttpHost, headers: List<Header>) {
+    fun testConnection() {
         val request = HttpGet("$httpHost")
-        headers.forEach { request.addHeader(it) }
         execute(request, JsonResponseHandler(Map::class.java))
     }
 
-    fun getClusterStats(httpHost: HttpHost, headers: List<Header>): ClusterStats {
+    fun getClusterStats(): ClusterStats {
         val request = HttpGet("$httpHost/_cluster/stats")
-        headers.forEach { request.addHeader(it) }
         return execute(request, JsonResponseHandler(ClusterStats::class.java))
     }
 
-    fun execute(request: Request, headers: List<Header>, checkResponseSuccess: Boolean = true): Response {
+    fun execute(request: Request, checkResponseSuccess: Boolean = true): Response {
         val httpRequest = when (request.method) {
             Method.GET -> HttpGet(request.urlPath)
             Method.POST -> {
@@ -124,7 +139,6 @@ class ElasticsearchClient(project: Project) : Disposable {
             Method.HEAD -> HttpHead(request.urlPath)
             Method.DELETE -> HttpDelete(request.urlPath)
         }
-        headers.forEach { httpRequest.addHeader(it) }
         return execute(
             httpRequest,
             ResponseHandler { response ->
@@ -140,7 +154,10 @@ class ElasticsearchClient(project: Project) : Disposable {
     }
 
     private fun <T> execute(request: HttpUriRequest, responseHandler: ResponseHandler<T>): T {
-        return httpClient.execute(request, responseHandler)
+        if (initException != null) {
+            throw initException!!
+        }
+        return client!!.execute(request, responseHandler)
     }
 
     private class JsonResponseHandler<T>(private val clazz: Class<T>) : ConvertingResponseHandler<T>({
@@ -180,8 +197,11 @@ class ElasticsearchClient(project: Project) : Disposable {
         }
     }
 
-    override fun dispose() {
-        httpClient.close()
+    override fun close() {
+        try {
+            client?.close()
+        } catch (ignore: Exception) {
+        }
     }
 
     companion object {
