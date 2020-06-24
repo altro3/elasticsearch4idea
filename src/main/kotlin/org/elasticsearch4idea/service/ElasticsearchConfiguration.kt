@@ -25,6 +25,7 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.project.Project
+import com.intellij.util.xmlb.annotations.Property
 import org.elasticsearch4idea.model.AutoRefreshOptions
 import org.elasticsearch4idea.model.ClusterConfiguration
 import org.elasticsearch4idea.model.ViewMode
@@ -162,8 +163,8 @@ class ElasticsearchConfiguration(private val project: Project) :
     class ClusterConfigInternal(
         var label: String = "",
         var url: String = "",
-        var credentialsStored: Boolean = true, // TODO true for backward compatibility, change to false in future release
-        var sslConfigStored: Boolean = false
+        @Property(alwaysWrite = true) var credentialsStored: Boolean = true, // TODO true for backward compatibility, change to false in future release
+        @Property(alwaysWrite = true) var sslConfigStored: Boolean = false
     )
 
 }
