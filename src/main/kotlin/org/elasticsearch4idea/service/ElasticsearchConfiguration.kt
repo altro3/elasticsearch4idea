@@ -46,9 +46,15 @@ class ElasticsearchConfiguration(private val project: Project) :
     override fun getState(): State {
         val clusters = HashMap<String, ClusterConfigInternal>()
         clusterConfigurations.forEach { (label, config) ->
-            storeCredentials(label, config.credentials)
-            storeSSLConfig(label, config.sslConfig)
-            clusters.put(label, ClusterConfigInternal(config.label, config.url))
+            var credentialsStored = false
+            if (config.credentialsStored || config.credentials != null) {
+                credentialsStored = storeCredentials(label, config.credentials)
+            }
+            var sslConfigStored = false
+            if (config.sslConfigStored || config.sslConfig != null) {
+                sslConfigStored = storeSSLConfig(label, config.sslConfig)
+            }
+            clusters.put(label, ClusterConfigInternal(config.label, config.url, credentialsStored, sslConfigStored))
         }
         return State(clusters, autoRefresh, viewMode)
     }
@@ -62,8 +68,10 @@ class ElasticsearchConfiguration(private val project: Project) :
             ClusterConfiguration(
                 label = it.value.label,
                 url = it.value.url,
-                credentials = readCredentials(it.key),
-                sslConfig = readSSLConfig(it.key)
+                credentials = if (it.value.credentialsStored) readCredentials(it.key) else null,
+                sslConfig = if (it.value.sslConfigStored) readSSLConfig(it.key) else null,
+                credentialsStored = it.value.credentialsStored,
+                sslConfigStored = it.value.sslConfigStored
             )
         }
             .forEach { clusterConfigurations.put(it.label, it) }
@@ -94,14 +102,15 @@ class ElasticsearchConfiguration(private val project: Project) :
         )
     }
 
-    private fun storeCredentials(label: String, configCredentials: ClusterConfiguration.Credentials?) {
+    private fun storeCredentials(label: String, configCredentials: ClusterConfiguration.Credentials?): Boolean {
         val credentialAttributes = createCredentialAttributes(label)
         val credentials = if (configCredentials == null) null
         else Credentials(configCredentials.user, configCredentials.password)
         PasswordSafe.instance.set(credentialAttributes, credentials)
+        return credentials != null
     }
 
-    private fun storeSSLConfig(label: String, sslConfig: ClusterConfiguration.SSLConfig?) {
+    private fun storeSSLConfig(label: String, sslConfig: ClusterConfiguration.SSLConfig?): Boolean {
         val trustStoreAttributes = createCredentialAttributes("$label-trustStore")
         val trustStoreCred = if (sslConfig?.trustStorePath == null) null
         else Credentials(sslConfig.trustStorePath, sslConfig.trustStorePassword)
@@ -111,6 +120,7 @@ class ElasticsearchConfiguration(private val project: Project) :
         val keyStoreCred = if (sslConfig?.keyStorePath == null) null
         else Credentials(sslConfig.keyStorePath, sslConfig.keyStorePassword)
         PasswordSafe.instance.set(keyStoreAttributes, keyStoreCred)
+        return trustStoreCred != null || keyStoreCred != null
     }
 
     private fun createCredentialAttributes(key: String): CredentialAttributes {
@@ -122,7 +132,13 @@ class ElasticsearchConfiguration(private val project: Project) :
     }
 
     fun removeClusterConfiguration(label: String) {
-        clusterConfigurations.remove(label)
+        val clusterConfiguration = clusterConfigurations.remove(label)
+        if (clusterConfiguration?.credentialsStored == true) {
+            storeCredentials(label, null)
+        }
+        if (clusterConfiguration?.sslConfigStored == true) {
+            storeSSLConfig(label, null)
+        }
     }
 
     fun hasConfiguration(label: String): Boolean {
@@ -145,7 +161,9 @@ class ElasticsearchConfiguration(private val project: Project) :
 
     class ClusterConfigInternal(
         var label: String = "",
-        var url: String = ""
+        var url: String = "",
+        var credentialsStored: Boolean = true, // TODO true for backward compatibility, change to false in future release
+        var sslConfigStored: Boolean = false
     )
 
 }

@@ -61,6 +61,8 @@ class ClusterConfigurationDialog(
     private val sslPanel: DialogPanel
 
     private val previousName = if (editing) previousConfiguration?.label else null
+    private val previousCredentialsStored = if (editing) previousConfiguration?.credentialsStored ?: false else false
+    private val previousSslConfigStored = if (editing) previousConfiguration?.sslConfigStored ?: false else false
     private var name = previousConfiguration?.label ?: "@localhost"
     private var url = previousConfiguration?.url ?: "http://localhost:9200"
     private var user = previousConfiguration?.credentials?.user ?: ""
@@ -239,7 +241,14 @@ class ClusterConfigurationDialog(
     }
 
     fun getConfiguration(): ClusterConfiguration {
-        return ClusterConfiguration(name, url, getCredentials(), getSSLConfig())
+        return ClusterConfiguration(
+            label = name,
+            url = url,
+            credentials = getCredentials(),
+            sslConfig = getSSLConfig(),
+            credentialsStored = previousCredentialsStored,
+            sslConfigStored = previousSslConfigStored
+        )
     }
 
     private fun getCredentials(): ClusterConfiguration.Credentials? {
@@ -254,7 +263,12 @@ class ClusterConfigurationDialog(
         if (trustStorePath.isBlank() && keyStorePath.isBlank()) {
             return null
         }
-        return ClusterConfiguration.SSLConfig(trustStorePath, keyStorePath, trustStorePassword, keyStorePassword)
+        return ClusterConfiguration.SSLConfig(
+            trustStorePath = if (trustStorePath.isBlank()) null else trustStorePath,
+            keyStorePath = if (keyStorePath.isBlank()) null else keyStorePath,
+            trustStorePassword = trustStorePassword,
+            keyStorePassword = keyStorePassword
+        )
     }
 
 }

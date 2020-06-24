@@ -23,7 +23,9 @@ class ClusterConfiguration(
     val label: String,
     val url: String,
     val credentials: Credentials?,
-    val sslConfig: SSLConfig?
+    val sslConfig: SSLConfig?,
+    val credentialsStored: Boolean,
+    val sslConfigStored: Boolean
 ) {
 
     fun getHttpHost(): HttpHost = url.let(HttpHost::create)
