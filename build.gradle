@@ -20,7 +20,7 @@ plugins {
 }
 
 group 'org.elasticsearch4idea'
-version '0.1.4'
+version '0.1.5'
 
 repositories {
     mavenCentral()

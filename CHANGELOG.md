@@ -1,10 +1,16 @@
 Change Log
 ----------
 
+## Version 0.1.5
+
+- \#3 Fix query URL encoding issue
+
+
 ## Version 0.1.4
 
 - \#2 Support SSL
 - Fix using PasswordSafe storage only when credentials are set
+
 
 ## Version 0.1.3
 

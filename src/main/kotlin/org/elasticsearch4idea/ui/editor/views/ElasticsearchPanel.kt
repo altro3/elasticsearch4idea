@@ -35,7 +35,6 @@ import com.intellij.ui.SearchTextField
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import com.intellij.util.ui.components.BorderLayoutPanel
-import org.apache.http.client.utils.URIBuilder
 import org.elasticsearch4idea.model.Method
 import org.elasticsearch4idea.model.Request
 import org.elasticsearch4idea.model.ViewMode
@@ -116,9 +115,7 @@ class ElasticsearchPanel(
             override fun run(indicator: ProgressIndicator) {
                 try {
                     val elasticsearchManager = project.service<ElasticsearchManager>()
-                    val url = URIBuilder(elasticsearchFile.cluster.host)
-                        .setPath(urlField.text)
-                        .toString()
+                    val url = "${elasticsearchFile.cluster.host}/${urlField.text}"
                     val request = Request(url, bodyPanel.getBody(), methodCombo.selectedItem as Method)
                     val response = elasticsearchManager.executeRequest(request, elasticsearchFile.cluster)
 
