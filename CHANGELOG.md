@@ -1,6 +1,12 @@
 Change Log
 ----------
 
+## Version 0.1.6
+
+- Fetch clusters only on demand
+- Remove auto-reload clusters
+
+
 ## Version 0.1.5
 
 - \#3 Fix query URL encoding issue

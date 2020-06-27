@@ -95,7 +95,7 @@ class ElasticsearchExplorer(
         ProgressManager.getInstance()
             .run(object : Task.Backgroundable(project, "Getting Elasticsearch cluster info", false) {
                 override fun run(indicator: ProgressIndicator) {
-                    elasticsearchManager.fetchAllClusters()
+                    elasticsearchManager.createAllClusters()
                 }
             })
     }
@@ -125,13 +125,13 @@ class ElasticsearchExplorer(
                 dataContext: DataContext,
                 treePath: TreePath
             ) {
-                openQueryEditorForIndex()
+                treeNodeAction()
             }
         }.installOn(tree)
 
         tree.registerKeyboardAction(object : AbstractAction() {
             override fun actionPerformed(e: ActionEvent) {
-                openQueryEditorForIndex()
+                treeNodeAction()
             }
         }, KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), JComponent.WHEN_FOCUSED)
 
@@ -156,11 +156,7 @@ class ElasticsearchExplorer(
             table.updateInfos(emptyList())
         }
         val cluster = this.getSelectedCluster()
-        val index = this.getSelectedIndex()
-        if (cluster == null && index == null) {
-            return
-        }
-        if (cluster != null) {
+        if (cluster != null && cluster.isLoaded()) {
             ProgressManager.getInstance()
                 .run(object : Task.Backgroundable(project, "Getting Elasticsearch cluster info", false) {
                     override fun run(indicator: ProgressIndicator) {
@@ -172,11 +168,14 @@ class ElasticsearchExplorer(
                         }
                     }
                 })
-        } else {
+            return
+        }
+        val index = this.getSelectedIndex()
+        if (index != null && index.cluster.isLoaded()) {
             ProgressManager.getInstance()
                 .run(object : Task.Backgroundable(project, "Getting Elasticsearch index info", false) {
                     override fun run(indicator: ProgressIndicator) {
-                        val infos = elasticsearchManager.getIndexInfo(index!!)?.toTableEntryList()
+                        val infos = elasticsearchManager.getIndexInfo(index)?.toTableEntryList()
                         if (infos != null) {
                             ApplicationManager.getApplication().invokeLater {
                                 table.updateInfos(infos)
@@ -184,6 +183,7 @@ class ElasticsearchExplorer(
                         }
                     }
                 })
+            return
         }
     }
 
@@ -295,12 +295,23 @@ class ElasticsearchExplorer(
         PopupHandler.installPopupHandler(tree, actionPopupGroup, "POPUP", ActionManager.getInstance())
     }
 
-    fun openQueryEditorForIndex() {
+    fun treeNodeAction() {
         val index = getSelectedIndex()
         if (index != null) {
             val body = "{\n  \"from\": 0,\n  \"size\": 20,\n  \"query\": {\n    \"match_all\": {}\n  }\n}"
             val request = Request("/${index.name}/_search", body, Method.POST)
             openQueryEditor(index.cluster, request)
+            return
+        }
+        val cluster = getSelectedCluster()
+        if (cluster != null) {
+            ProgressManager.getInstance()
+                .run(object : Task.Backgroundable(project, "Getting Elasticsearch cluster info", false) {
+                    override fun run(indicator: ProgressIndicator) {
+                        elasticsearchManager.fetchClusters(listOf(cluster.label))
+                    }
+                })
+            return
         }
     }
 

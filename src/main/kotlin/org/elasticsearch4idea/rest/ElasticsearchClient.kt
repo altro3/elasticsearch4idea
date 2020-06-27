@@ -44,21 +44,19 @@ import java.io.InputStream
 
 class ElasticsearchClient(clusterConfiguration: ClusterConfiguration) : Closeable {
     private val httpHost: HttpHost = clusterConfiguration.getHttpHost()
-    private val client: CloseableHttpClient?
     private var initException: Exception? = null
+    private val client: CloseableHttpClient? by lazy {
+        try {
+            val headers = if (clusterConfiguration.credentials == null) {
+                emptyList<Header>()
+            } else {
+                listOf(BasicHeader(HttpHeaders.AUTHORIZATION, clusterConfiguration.credentials.toBasicAuthHeader()))
+            }
 
-    init {
-        val headers = if (clusterConfiguration.credentials == null) {
-            emptyList<Header>()
-        } else {
-            listOf(BasicHeader(HttpHeaders.AUTHORIZATION, clusterConfiguration.credentials.toBasicAuthHeader()))
-        }
+            val config = RequestConfig.custom()
+                .setConnectTimeout(5_000)
+                .build()
 
-        val config = RequestConfig.custom()
-            .setConnectTimeout(5_000)
-            .build()
-
-        client = try {
             val sslContext = SSLUtils.createSSLContext(clusterConfiguration.sslConfig)
             HttpClientBuilder.create()
                 .setDefaultHeaders(headers)

@@ -34,7 +34,7 @@ class OpenQueryEditorAction(
             return
         }
         if (elasticsearchExplorer.getSelectedIndex() != null) {
-            elasticsearchExplorer.openQueryEditorForIndex()
+            elasticsearchExplorer.treeNodeAction()
         }
     }
 

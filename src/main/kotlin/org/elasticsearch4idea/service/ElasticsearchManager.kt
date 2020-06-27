@@ -49,20 +49,23 @@ class ElasticsearchManager(project: Project) : Disposable {
         return clusters.values
     }
 
-    fun fetchAllClusters(needNotify: Boolean = true) {
-        elasticsearchConfiguration.getConfigurations()
-            .forEach { fetchCluster(it, needNotify) }
+    fun createAllClusters() {
+        elasticsearchConfiguration.getConfigurations().forEach {
+            val cluster = createOrUpdateCluster(it)
+            ApplicationManager.getApplication()
+                .invokeAndWait { eventDispatcher.multicaster.clusterAdded(cluster) }
+        }
     }
 
     fun fetchClusters(clusterLabels: Collection<String>) {
         clusterLabels.asSequence()
             .map { elasticsearchConfiguration.getConfiguration(it) }
             .filterNotNull()
-            .forEach { fetchCluster(it, true) }
+            .forEach { fetchCluster(it) }
     }
 
     fun addCluster(clusterConfig: ClusterConfiguration) {
-        fetchCluster(clusterConfig, true)
+        fetchCluster(clusterConfig)
     }
 
     fun changeCluster(previousLabel: String, clusterConfig: ClusterConfiguration) {
@@ -70,35 +73,31 @@ class ElasticsearchManager(project: Project) : Disposable {
         if (isNewLabel) {
             removeCluster(previousLabel)
         }
-        fetchCluster(clusterConfig, true)
+        fetchCluster(clusterConfig)
     }
 
-    private fun fetchCluster(clusterConfig: ClusterConfiguration, needNotify: Boolean) {
+    private fun fetchCluster(clusterConfig: ClusterConfiguration) {
         val isNewCluster = !clusters.containsKey(clusterConfig.label)
         elasticsearchConfiguration.putClusterConfiguration(clusterConfig)
         val cluster = createOrUpdateCluster(clusterConfig)
         cluster.status = ElasticsearchCluster.Status.LOADING
-        if (needNotify) {
-            if (isNewCluster) {
-                ApplicationManager.getApplication()
-                    .invokeAndWait { eventDispatcher.multicaster.clusterAdded(cluster) }
-            } else {
-                ApplicationManager.getApplication()
-                    .invokeAndWait { eventDispatcher.multicaster.clusterChanged(cluster) }
-            }
+        if (isNewCluster) {
+            ApplicationManager.getApplication()
+                .invokeAndWait { eventDispatcher.multicaster.clusterAdded(cluster) }
+        } else {
+            ApplicationManager.getApplication()
+                .invokeAndWait { eventDispatcher.multicaster.clusterChanged(cluster) }
         }
 
         fetchClusterStats(cluster)
 
         if (cluster.status == ElasticsearchCluster.Status.LOADED) {
-            fetchIndices(cluster, needNotify)
+            fetchIndices(cluster)
         } else {
             cluster.indices.clear()
         }
-        if (needNotify) {
-            ApplicationManager.getApplication()
-                .invokeAndWait { eventDispatcher.multicaster.clusterChanged(cluster) }
-        }
+        ApplicationManager.getApplication()
+            .invokeAndWait { eventDispatcher.multicaster.clusterChanged(cluster) }
     }
 
     private fun createOrUpdateCluster(configuration: ClusterConfiguration): ElasticsearchCluster {
@@ -121,7 +120,7 @@ class ElasticsearchManager(project: Project) : Disposable {
         return cluster
     }
 
-    private fun fetchIndices(cluster: ElasticsearchCluster, needNotify: Boolean): ElasticsearchCluster {
+    private fun fetchIndices(cluster: ElasticsearchCluster): ElasticsearchCluster {
         val indexesByName = cluster.indices.associateBy { it.name }
         cluster.indices.clear()
         cluster.status = ElasticsearchCluster.Status.NOT_LOADED
@@ -138,10 +137,8 @@ class ElasticsearchManager(project: Project) : Disposable {
             }
             cluster.status = ElasticsearchCluster.Status.LOADED
         }
-        if (needNotify) {
-            ApplicationManager.getApplication()
-                .invokeLater { eventDispatcher.multicaster.clusterChanged(cluster) }
-        }
+        ApplicationManager.getApplication()
+            .invokeLater { eventDispatcher.multicaster.clusterChanged(cluster) }
         return cluster
     }
 
@@ -178,7 +175,7 @@ class ElasticsearchManager(project: Project) : Disposable {
             )
             Messages.showInfoMessage(response.content, "Index '${index.name}' deleted")
         }
-        fetchIndices(index.cluster, true)
+        fetchIndices(index.cluster)
     }
 
     fun createIndex(cluster: ElasticsearchCluster, indexName: String, numberOfShards: Int, numberOfReplicas: Int) {
@@ -199,7 +196,7 @@ class ElasticsearchManager(project: Project) : Disposable {
             )
             Messages.showInfoMessage(response.content, "Index '$indexName' created")
         }
-        fetchIndices(cluster, true)
+        fetchIndices(cluster)
     }
 
     fun createAlias(index: ElasticsearchIndex, alias: String) {
@@ -261,7 +258,7 @@ class ElasticsearchManager(project: Project) : Disposable {
             )
             Messages.showInfoMessage(response.content, "Index '${index.name}' closed")
         }
-        fetchIndices(index.cluster, true)
+        fetchIndices(index.cluster)
     }
 
     fun openIndex(index: ElasticsearchIndex) {
@@ -274,7 +271,7 @@ class ElasticsearchManager(project: Project) : Disposable {
             )
             Messages.showInfoMessage(response.content, "Index '${index.name}' opened")
         }
-        fetchIndices(index.cluster, true)
+        fetchIndices(index.cluster)
     }
 
     fun testConnection(configuration: ClusterConfiguration) {
