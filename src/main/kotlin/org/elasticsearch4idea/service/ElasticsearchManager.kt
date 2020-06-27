@@ -22,13 +22,10 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.util.EventDispatcher
-import com.intellij.util.concurrency.AppExecutorUtil
 import org.elasticsearch4idea.model.*
 import org.elasticsearch4idea.rest.ElasticsearchClient
 import org.elasticsearch4idea.ui.ElasticsearchClustersListener
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.Future
-import java.util.concurrent.TimeUnit
 
 @Service
 class ElasticsearchManager(project: Project) : Disposable {
@@ -38,30 +35,7 @@ class ElasticsearchManager(project: Project) : Disposable {
     private val eventDispatcher: EventDispatcher<ElasticsearchClustersListener> =
         EventDispatcher.create(ElasticsearchClustersListener::class.java)
     private val elasticsearchConfiguration = project.service<ElasticsearchConfiguration>()
-    private val scheduler = AppExecutorUtil.getAppScheduledExecutorService()
-    private var future: Future<*>? = null
 
-    init {
-        scheduleAutoRefresh(elasticsearchConfiguration.autoRefresh)
-    }
-
-    @Synchronized
-    fun scheduleAutoRefresh(autoRefresh: AutoRefreshOptions) {
-        elasticsearchConfiguration.autoRefresh = autoRefresh
-
-        future?.cancel(false)
-        if (autoRefresh != AutoRefreshOptions.DISABLED) {
-            future = scheduler.scheduleWithFixedDelay(
-                {
-                    fetchAllClusters(false)
-                    eventDispatcher.multicaster.clustersLoaded()
-                },
-                autoRefresh.seconds.toLong(),
-                autoRefresh.seconds.toLong(),
-                TimeUnit.SECONDS
-            )
-        }
-    }
 
     fun addClustersListener(listener: ElasticsearchClustersListener) {
         eventDispatcher.addListener(listener)
@@ -338,7 +312,6 @@ class ElasticsearchManager(project: Project) : Disposable {
 
     override fun dispose() {
         clients.values.forEach { it.close() }
-        future?.cancel(false)
     }
 
 }

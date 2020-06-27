@@ -26,7 +26,6 @@ import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.project.Project
 import com.intellij.util.xmlb.annotations.Property
-import org.elasticsearch4idea.model.AutoRefreshOptions
 import org.elasticsearch4idea.model.ClusterConfiguration
 import org.elasticsearch4idea.model.ViewMode
 import java.util.concurrent.ConcurrentHashMap
@@ -41,7 +40,6 @@ class ElasticsearchConfiguration(private val project: Project) :
     PersistentStateComponent<ElasticsearchConfiguration.State> {
 
     private val clusterConfigurations: MutableMap<String, ClusterConfiguration> = ConcurrentHashMap()
-    var autoRefresh: AutoRefreshOptions = AutoRefreshOptions.DISABLED
     var viewMode: ViewMode = ViewMode.TEXT
 
     override fun getState(): State {
@@ -57,11 +55,10 @@ class ElasticsearchConfiguration(private val project: Project) :
             }
             clusters.put(label, ClusterConfigInternal(config.label, config.url, credentialsStored, sslConfigStored))
         }
-        return State(clusters, autoRefresh, viewMode)
+        return State(clusters, viewMode)
     }
 
     override fun loadState(state: State) {
-        this.autoRefresh = state.autoRefresh
         this.viewMode = state.viewMode
         clusterConfigurations.clear()
 
@@ -156,7 +153,6 @@ class ElasticsearchConfiguration(private val project: Project) :
 
     class State(
         var clusterConfigurations: Map<String, ClusterConfigInternal> = HashMap(),
-        var autoRefresh: AutoRefreshOptions = AutoRefreshOptions.DISABLED,
         var viewMode: ViewMode = ViewMode.TEXT
     )
 

@@ -358,7 +358,6 @@ class ElasticsearchExplorer(
         group.add(EditClusterAction(this))
         group.addSeparator()
         group.add(RefreshClustersAction(this))
-        group.add(AutoRefreshClustersActionGroup(project))
         group.add(OpenQueryEditorAction(this))
         group.addSeparator()
 
