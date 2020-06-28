@@ -15,9 +15,15 @@
  */
 package org.elasticsearch4idea.ui.explorer.table
 
+import com.intellij.openapi.editor.colors.EditorColorsManager
+import com.intellij.openapi.editor.colors.EditorFontType
 import com.intellij.ui.table.TableView
 import com.intellij.util.ui.ColumnInfo
+import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.ListTableModel
+import org.elasticsearch4idea.utils.MyUIUtils
+import java.awt.Font
+import javax.swing.table.JTableHeader
 
 class ElasticsearchInfosTable internal constructor() : TableView<TableEntry>(
     ListTableModel(
@@ -25,6 +31,18 @@ class ElasticsearchInfosTable internal constructor() : TableView<TableEntry>(
         ValueColumnInfo()
     )
 ) {
+
+    init {
+        val font: Font = EditorColorsManager.getInstance().globalScheme.getFont(EditorFontType.PLAIN)
+        setFont(font)
+    }
+
+    override fun getTableHeader(): JTableHeader {
+        val header = super.getTableHeader()
+        header.background = MyUIUtils.getTableHeaderColor()
+        header.border = JBUI.Borders.customLine(JBUI.CurrentTheme.ToolWindow.borderColor(), 1, 0, 0, 0)
+        return header
+    }
 
     fun updateInfos(collectionInfoEntries: List<TableEntry>) {
         (model as ListTableModel<*>).items = collectionInfoEntries

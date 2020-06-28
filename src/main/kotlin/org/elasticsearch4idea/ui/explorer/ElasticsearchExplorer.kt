@@ -41,6 +41,7 @@ import com.intellij.ui.tree.StructureTreeModel
 import com.intellij.ui.treeStructure.Tree
 import com.intellij.util.EditSourceOnDoubleClickHandler.TreeMouseListener
 import com.intellij.util.ui.JBUI
+import com.intellij.util.ui.UIUtil
 import com.intellij.util.ui.tree.TreeUtil
 import org.elasticsearch4idea.model.ElasticsearchCluster
 import org.elasticsearch4idea.model.ElasticsearchIndex
@@ -89,6 +90,7 @@ class ElasticsearchExplorer(
         val splitter = Splitter(true, 0.6f)
         splitter.firstComponent = treePanel
         splitter.secondComponent = infosPanel
+        splitter.divider.background = UIUtil.getListBackground()
 
         setContent(splitter)
 
