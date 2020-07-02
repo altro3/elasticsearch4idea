@@ -22,10 +22,16 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.google.common.collect.ArrayListMultimap
+import com.intellij.openapi.editor.colors.EditorColors
+import com.intellij.openapi.editor.colors.EditorColorsManager
+import com.intellij.openapi.editor.colors.EditorFontType
 import com.intellij.ui.table.TableView
 import com.intellij.util.ui.ColumnInfo
+import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.ListTableModel
+import org.elasticsearch4idea.utils.MyUIUtils
 import java.awt.Component
+import java.awt.Font
 import java.util.*
 import javax.swing.JTable
 import javax.swing.table.TableCellRenderer
@@ -44,6 +50,23 @@ class ResultTable internal constructor(
         setAutoResizeMode(JTable.AUTO_RESIZE_OFF)
         setCellSelectionEnabled(true)
 
+        val colorsScheme = EditorColorsManager.getInstance().globalScheme
+        val font: Font = colorsScheme.getFont(EditorFontType.PLAIN)
+        setFont(font)
+        getTableHeader().font = font
+        getTableHeader().background = MyUIUtils.getResultTableHeaderColor()
+        getTableHeader().foreground = EditorColorsManager.getInstance().globalScheme.defaultForeground
+        getTableHeader().border = JBUI.Borders.customLine(JBUI.CurrentTheme.ToolWindow.borderColor(), 1, 0, 0, 0)
+
+        setSelectionForeground(foreground)
+        colorsScheme.getColor(EditorColors.SELECTION_BACKGROUND_COLOR)?.let { setSelectionBackground(it) }
+        background = EditorColorsManager.getInstance().globalScheme.defaultBackground
+        foreground = EditorColorsManager.getInstance().globalScheme.defaultForeground
+
+        adjustColumnsBySize()
+    }
+
+    private fun adjustColumnsBySize() {
         for (column in 0 until columnCount) {
             val tableColumn: TableColumn = getColumnModel().getColumn(column)
             val renderer: TableCellRenderer = getTableHeader().defaultRenderer

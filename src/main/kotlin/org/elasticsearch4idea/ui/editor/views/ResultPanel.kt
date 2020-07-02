@@ -21,6 +21,8 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.EditorFactory
+import com.intellij.openapi.editor.colors.EditorColors
+import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.openapi.editor.ex.EditorEx
 import com.intellij.openapi.editor.ex.util.LexerEditorHighlighter
 import com.intellij.openapi.fileEditor.FileDocumentManager
@@ -34,6 +36,7 @@ import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.ui.JBUI
 import org.elasticsearch4idea.model.ViewMode
+import org.elasticsearch4idea.utils.MyUIUtils
 import java.awt.BorderLayout
 import javax.swing.JPanel
 
@@ -78,10 +81,19 @@ class ResultPanel(
                     updateEditorText(result)
                 } else {
                     val panel = JPanel(BorderLayout())
-                    panel.add(JBLabel("  " + table.label), BorderLayout.NORTH)
+                    panel.background = EditorColorsManager.getInstance().globalScheme.defaultBackground
+                    
                     val scrollPane = JBScrollPane(table)
                     scrollPane.border = JBUI.Borders.empty()
                     panel.add(scrollPane, BorderLayout.CENTER)
+                    
+                    val labelPanel = JPanel(BorderLayout())
+                    labelPanel.add(JBLabel("  " + table.label), BorderLayout.CENTER)
+                    val borderColor =
+                        EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.BORDER_LINES_COLOR)
+                    labelPanel.border = JBUI.Borders.customLine(borderColor, 1, 0, 0, 0)
+                    labelPanel.background = MyUIUtils.getBottomPanelBackgroundColor()
+                    panel.add(labelPanel, BorderLayout.SOUTH)
                     add(panel)
                 }
             }
@@ -92,7 +104,7 @@ class ResultPanel(
     private fun createEditor(): Editor {
         val editor = EditorFactory.getInstance()
             .createEditor(editorDocument, project, JsonFileType.INSTANCE, true) as EditorEx
-
+        editor.settings.isRightMarginShown = false
         val language = Language.findLanguageByID("JSON")!!
         val highlighter = LexerEditorHighlighter(
             SyntaxHighlighterFactory.getSyntaxHighlighter(language, null, null),

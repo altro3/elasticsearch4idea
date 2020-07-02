@@ -44,6 +44,7 @@ import org.elasticsearch4idea.ui.editor.ElasticsearchFile
 import org.elasticsearch4idea.ui.editor.actions.ExecuteQueryAction
 import org.elasticsearch4idea.ui.editor.actions.ViewAsActionGroup
 import java.awt.BorderLayout
+import java.awt.Dimension
 import javax.swing.JPanel
 
 class ElasticsearchPanel(
@@ -55,6 +56,7 @@ class ElasticsearchPanel(
     private val resultPanel: ResultPanel
 
     private val methodCombo = ComboBox(EnumComboBoxModel(Method::class.java), 85)
+        .also { it.preferredSize = Dimension(it.width, 28) }
     private val urlField = UrlField()
     private val elasticsearchConfiguration = project.service<ElasticsearchConfiguration>()
 
@@ -72,6 +74,7 @@ class ElasticsearchPanel(
         urlField.text = elasticsearchFile.request.urlPath
 
         val splitter = Splitter(true, 0.2f)
+        splitter.divider.background = UIUtil.SIDE_PANEL_BACKGROUND
         splitter.firstComponent = bodyPanel
         splitter.secondComponent = resultPanel
         add(splitter, BorderLayout.CENTER)
@@ -102,8 +105,8 @@ class ElasticsearchPanel(
         actionToolBar.layoutPolicy = ActionToolbar.AUTO_LAYOUT_POLICY
         Utils.setSmallerFontForChildren(actionToolBar)
 
-        urlField.border = JBUI.Borders.empty(2, 0)
         val panel = BorderLayoutPanel()
+        panel.border = JBUI.Borders.customLine(JBUI.CurrentTheme.ToolWindow.borderColor(), 0, 0, 1, 0)
         panel.add(methodCombo, BorderLayout.WEST)
         panel.add(urlField, BorderLayout.CENTER)
         panel.add(actionToolBar.component, BorderLayout.EAST)
@@ -156,7 +159,7 @@ class ElasticsearchPanel(
 
     internal class UrlField : SearchTextField() {
         init {
-            border = JBUI.Borders.empty()
+            border = JBUI.Borders.empty(2, 0)
         }
 
         override fun toClearTextOnEscape(): Boolean {

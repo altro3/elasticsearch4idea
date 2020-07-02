@@ -39,7 +39,7 @@ class ElasticsearchInfosTable internal constructor() : TableView<TableEntry>(
 
     override fun getTableHeader(): JTableHeader {
         val header = super.getTableHeader()
-        header.background = MyUIUtils.getTableHeaderColor()
+        header.background = MyUIUtils.getPropertiesTableHeaderColor()
         header.border = JBUI.Borders.customLine(JBUI.CurrentTheme.ToolWindow.borderColor(), 1, 0, 0, 0)
         return header
     }

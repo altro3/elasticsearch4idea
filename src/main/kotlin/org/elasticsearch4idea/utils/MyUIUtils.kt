@@ -22,11 +22,25 @@ import java.awt.Color
 
 object MyUIUtils {
 
-    fun getTableHeaderColor(): Color {
+    fun getResultTableHeaderColor(): Color {
+        val color = EditorColorsManager.getInstance().globalScheme.defaultBackground
+        return if (EditorColorsManager.getInstance().isDarkEditor) {
+            Color(color.red + 16, color.green + 16, color.blue + 16)
+        } else {
+            Color(color.red - 16, color.green - 16, color.blue - 16)
+        }
+    }
+    
+    fun getPropertiesTableHeaderColor(): Color {
         return if (EditorColorsManager.getInstance().isDarkEditor) {
             EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.GUTTER_BACKGROUND)!!.brighter()
         } else {
             EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.GUTTER_BACKGROUND)!!
         }
+    }
+
+    fun getBottomPanelBackgroundColor(): Color {
+        return EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.GUTTER_BACKGROUND)
+            ?: getPropertiesTableHeaderColor()
     }
 }
