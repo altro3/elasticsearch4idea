@@ -44,30 +44,24 @@ import java.io.InputStream
 
 class ElasticsearchClient(clusterConfiguration: ClusterConfiguration) : Closeable {
     private val httpHost: HttpHost = clusterConfiguration.getHttpHost()
-    private var initException: Exception? = null
-    private val client: CloseableHttpClient? by lazy {
-        try {
-            val headers = if (clusterConfiguration.credentials == null) {
-                emptyList<Header>()
-            } else {
-                listOf(BasicHeader(HttpHeaders.AUTHORIZATION, clusterConfiguration.credentials.toBasicAuthHeader()))
-            }
-
-            val config = RequestConfig.custom()
-                .setConnectTimeout(5_000)
-                .build()
-
-            val sslContext = SSLUtils.createSSLContext(clusterConfiguration.sslConfig)
-            HttpClientBuilder.create()
-                .setDefaultHeaders(headers)
-                .setSSLContext(sslContext)
-                .setSSLHostnameVerifier(NoopHostnameVerifier())
-                .setDefaultRequestConfig(config)
-                .build()
-        } catch (e: Exception) {
-            initException = e
-            null
+    private val client: CloseableHttpClient by lazy {
+        val headers = if (clusterConfiguration.credentials == null) {
+            emptyList<Header>()
+        } else {
+            listOf(BasicHeader(HttpHeaders.AUTHORIZATION, clusterConfiguration.credentials.toBasicAuthHeader()))
         }
+
+        val config = RequestConfig.custom()
+            .setConnectTimeout(5_000)
+            .build()
+
+        val sslContext = SSLUtils.createSSLContext(clusterConfiguration.sslConfig)
+        HttpClientBuilder.create()
+            .setDefaultHeaders(headers)
+            .setSSLContext(sslContext)
+            .setSSLHostnameVerifier(NoopHostnameVerifier())
+            .setDefaultRequestConfig(config)
+            .build()
     }
 
     fun getIndexInfo(index: String): IndexInfo {
@@ -152,10 +146,7 @@ class ElasticsearchClient(clusterConfiguration: ClusterConfiguration) : Closeabl
     }
 
     private fun <T> execute(request: HttpUriRequest, responseHandler: ResponseHandler<T>): T {
-        if (initException != null) {
-            throw initException!!
-        }
-        return client!!.execute(request, responseHandler)
+        return client.execute(request, responseHandler)
     }
 
     private class JsonResponseHandler<T>(private val clazz: Class<T>) : ConvertingResponseHandler<T>({
@@ -197,7 +188,7 @@ class ElasticsearchClient(clusterConfiguration: ClusterConfiguration) : Closeabl
 
     override fun close() {
         try {
-            client?.close()
+            client.close()
         } catch (ignore: Exception) {
         }
     }

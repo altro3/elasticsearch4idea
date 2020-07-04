@@ -61,13 +61,14 @@ object SSLUtils {
     }
 
     private fun loadKeyStore(keyStorePathStr: String?, keyStorePass: String?): KeyStore? {
-        val keyStorePath: Path? = if (keyStorePathStr.isNullOrBlank()) null else Paths.get(keyStorePathStr)
-        var keyStore: KeyStore? = null
-        if (keyStorePath != null) {
-            keyStore = KeyStore.getInstance("pkcs12")
-            Files.newInputStream(keyStorePath)
-                .use { inputStream -> keyStore.load(inputStream, keyStorePass?.toCharArray()) }
+        val keyStorePath: Path = if (keyStorePathStr.isNullOrBlank()) return null else Paths.get(keyStorePathStr)
+        val keyStore: KeyStore = if (keyStorePathStr.endsWith(".jks")) {
+            KeyStore.getInstance("jks")
+        } else {
+            KeyStore.getInstance("pkcs12")
         }
+        Files.newInputStream(keyStorePath)
+            .use { inputStream -> keyStore.load(inputStream, keyStorePass?.toCharArray()) }
         return keyStore
     }
 }

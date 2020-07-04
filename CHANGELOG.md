@@ -3,8 +3,10 @@ Change Log
 
 ## Version 0.1.6
 
+- Improve table appearance
 - Fetch clusters only on demand
 - Remove auto-reload clusters
+- Support JKS keystore
 
 
 ## Version 0.1.5
