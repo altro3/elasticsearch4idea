@@ -1,6 +1,9 @@
 Change Log
 ----------
 
+## Version 0.1.7
+- Rename plugin to 'Elasticsearch'
+
 ## Version 0.1.6
 
 - Improve table appearance
