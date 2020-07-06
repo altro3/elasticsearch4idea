@@ -22,18 +22,21 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.google.common.collect.ArrayListMultimap
-import com.intellij.openapi.editor.colors.EditorColors
 import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.openapi.editor.colors.EditorFontType
 import com.intellij.ui.table.TableView
 import com.intellij.util.ui.ColumnInfo
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.ListTableModel
+import org.elasticsearch4idea.ui.editor.table.ResultTableCellRenderer
+import org.elasticsearch4idea.ui.editor.table.ResultTableHeaderRenderer
 import org.elasticsearch4idea.utils.MyUIUtils
+import org.elasticsearch4idea.utils.TableColumnModelListenerAdapter
 import java.awt.Component
 import java.awt.Font
 import java.util.*
 import javax.swing.JTable
+import javax.swing.event.ListSelectionEvent
 import javax.swing.table.TableCellRenderer
 import javax.swing.table.TableColumn
 import kotlin.math.max
@@ -53,16 +56,23 @@ class ResultTable internal constructor(
         val colorsScheme = EditorColorsManager.getInstance().globalScheme
         val font: Font = colorsScheme.getFont(EditorFontType.PLAIN)
         setFont(font)
+        getTableHeader().defaultRenderer = ResultTableHeaderRenderer()
         getTableHeader().font = font
         getTableHeader().background = MyUIUtils.getResultTableHeaderColor()
-        getTableHeader().foreground = EditorColorsManager.getInstance().globalScheme.defaultForeground
-        getTableHeader().border = JBUI.Borders.customLine(JBUI.CurrentTheme.ToolWindow.borderColor(), 1, 0, 0, 0)
+        getTableHeader().foreground = colorsScheme.defaultForeground
+        getTableHeader().border = JBUI.Borders.customLine(MyUIUtils.getResultTableGridColor(), 1)
+        gridColor = MyUIUtils.getResultTableGridColor()
+        selectionForeground = null
+        columnModel.addColumnModelListener(object : TableColumnModelListenerAdapter() {
 
-        setSelectionForeground(foreground)
-        colorsScheme.getColor(EditorColors.SELECTION_BACKGROUND_COLOR)?.let { setSelectionBackground(it) }
-        background = EditorColorsManager.getInstance().globalScheme.defaultBackground
-        foreground = EditorColorsManager.getInstance().globalScheme.defaultForeground
-
+            override fun columnSelectionChanged(e: ListSelectionEvent?) {
+                if (e == null) {
+                    return
+                }
+                getTableHeader().repaint(getTableHeader().getHeaderRect(e.firstIndex))
+                getTableHeader().repaint(getTableHeader().getHeaderRect(e.lastIndex))
+            }
+        })
         adjustColumnsBySize()
     }
 
@@ -140,7 +150,7 @@ class ResultTable internal constructor(
         }
 
         private fun convertHit(hit: ObjectNode): ResultTableEntry {
-            val propertiesMultiMap = ArrayListMultimap.create<String, String>()
+            val propertiesMultiMap = ArrayListMultimap.create<String, Any?>()
             hit.fields()
                 .forEach {
                     collectValues(
@@ -161,14 +171,14 @@ class ResultTable internal constructor(
             return ResultTableEntry(propertiesMap)
         }
 
-        private fun collectValues(key: String, jsonNode: JsonNode, values: ArrayListMultimap<String, String>) {
+        private fun collectValues(key: String, jsonNode: JsonNode, values: ArrayListMultimap<String, Any?>) {
             if (jsonNode.isValueNode) {
-                values.put(key, jsonNode.asText())
+                values.put(key, getValueFromNode(jsonNode))
             } else if (jsonNode.isArray) {
-                val items = StringJoiner(", ", "[", "]")
+                val items = ArrayList<Any?>()
                 for (item: JsonNode in (jsonNode as ArrayNode).asIterable()) {
                     if (item.isValueNode) {
-                        items.add(item.asText())
+                        items.add(getValueFromNode(item))
                     } else if (item.isObject) {
                         collectValues(
                             key,
@@ -177,7 +187,7 @@ class ResultTable internal constructor(
                         )
                     }
                 }
-                if (items.length() > 2) {
+                if (items.size > 2) {
                     values.put(key, items.toString())
                 }
             } else if (jsonNode.isObject) {
@@ -190,16 +200,37 @@ class ResultTable internal constructor(
                 }
             }
         }
+
+        private fun getValueFromNode(jsonNode: JsonNode): Any? {
+            return when {
+                jsonNode.isNull -> {
+                    null
+                }
+                jsonNode.isBoolean -> {
+                    jsonNode.booleanValue()
+                }
+                jsonNode.isNumber -> {
+                    jsonNode.numberValue()
+                }
+                else -> {
+                    jsonNode.asText()
+                }
+            }
+        }
     }
 
-    class ResultTableColumnInfo(name: String) : ColumnInfo<ResultTableEntry, String>(name) {
+    class ResultTableColumnInfo(name: String) : ColumnInfo<ResultTableEntry, Collection<Any?>?>(name) {
 
-        override fun valueOf(item: ResultTableEntry?): String? {
-            return item?.values?.get(name)?.joinToString(", ")
+        override fun valueOf(item: ResultTableEntry?): Collection<Any?>? {
+            return item?.values?.get(name)
+        }
+
+        override fun getRenderer(item: ResultTableEntry): TableCellRenderer {
+            return ResultTableCellRenderer.instance
         }
 
     }
 
-    class ResultTableEntry(val values: Map<String, Collection<String>>)
+    class ResultTableEntry(val values: Map<String, Collection<Any?>>)
 
 }
