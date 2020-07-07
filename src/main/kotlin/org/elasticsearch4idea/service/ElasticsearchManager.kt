@@ -22,6 +22,7 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.util.EventDispatcher
+import com.intellij.util.ui.UIUtil
 import org.elasticsearch4idea.model.*
 import org.elasticsearch4idea.rest.ElasticsearchClient
 import org.elasticsearch4idea.ui.ElasticsearchClustersListener
@@ -173,7 +174,9 @@ class ElasticsearchManager(project: Project) : Disposable {
                     method = Method.DELETE
                 )
             )
-            Messages.showInfoMessage(response.content, "Index '${index.name}' deleted")
+            UIUtil.invokeLaterIfNeeded {
+                Messages.showInfoMessage(response.content, "Index '${index.name}' deleted")
+            }
         }
         fetchIndices(index.cluster)
     }
@@ -194,7 +197,9 @@ class ElasticsearchManager(project: Project) : Disposable {
     }"""
                 )
             )
-            Messages.showInfoMessage(response.content, "Index '$indexName' created")
+            UIUtil.invokeLaterIfNeeded {
+                Messages.showInfoMessage(response.content, "Index '$indexName' created")
+            }
         }
         fetchIndices(cluster)
     }
@@ -207,7 +212,9 @@ class ElasticsearchManager(project: Project) : Disposable {
                     method = Method.PUT
                 )
             )
-            Messages.showInfoMessage(response.content, "Alias '$alias' created")
+            UIUtil.invokeLaterIfNeeded {
+                Messages.showInfoMessage(response.content, "Alias '$alias' created")
+            }
         }
     }
 
@@ -219,7 +226,9 @@ class ElasticsearchManager(project: Project) : Disposable {
                     method = Method.POST
                 )
             )
-            Messages.showInfoMessage(response.content, "Index '${index.name}' refreshed")
+            UIUtil.invokeLaterIfNeeded {
+                Messages.showInfoMessage(response.content, "Index '${index.name}' refreshed")
+            }
         }
     }
 
@@ -231,7 +240,9 @@ class ElasticsearchManager(project: Project) : Disposable {
                     method = Method.POST
                 )
             )
-            Messages.showInfoMessage(response.content, "Index '${index.name}' flushed")
+            UIUtil.invokeLaterIfNeeded {
+                Messages.showInfoMessage(response.content, "Index '${index.name}' flushed")
+            }
         }
     }
 
@@ -244,7 +255,9 @@ class ElasticsearchManager(project: Project) : Disposable {
                     method = Method.POST
                 )
             )
-            Messages.showInfoMessage(response.content, "Force merge '${index.name}' performed")
+            UIUtil.invokeLaterIfNeeded {
+                Messages.showInfoMessage(response.content, "Force merge '${index.name}' performed")
+            }
         }
     }
 
@@ -256,7 +269,9 @@ class ElasticsearchManager(project: Project) : Disposable {
                     method = Method.POST
                 )
             )
-            Messages.showInfoMessage(response.content, "Index '${index.name}' closed")
+            UIUtil.invokeLaterIfNeeded {
+                Messages.showInfoMessage(response.content, "Index '${index.name}' closed")
+            }
         }
         fetchIndices(index.cluster)
     }
@@ -269,7 +284,9 @@ class ElasticsearchManager(project: Project) : Disposable {
                     method = Method.POST
                 )
             )
-            Messages.showInfoMessage(response.content, "Index '${index.name}' opened")
+            UIUtil.invokeLaterIfNeeded {
+                Messages.showInfoMessage(response.content, "Index '${index.name}' opened")
+            }
         }
         fetchIndices(index.cluster)
     }
@@ -301,7 +318,9 @@ class ElasticsearchManager(project: Project) : Disposable {
             function.invoke()
         } catch (e: Exception) {
             if (showErrorMessage) {
-                Messages.showErrorDialog(e.message ?: e.toString(), "Error")
+                UIUtil.invokeLaterIfNeeded {
+                    Messages.showErrorDialog(e.message ?: e.toString(), "Error")
+                }
             }
             null
         }
