@@ -17,6 +17,7 @@ package org.elasticsearch4idea.ui.explorer.table
 
 import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.openapi.editor.colors.EditorFontType
+import com.intellij.ui.JBColor
 import com.intellij.ui.table.TableView
 import com.intellij.util.ui.ColumnInfo
 import com.intellij.util.ui.JBUI
@@ -40,7 +41,7 @@ class ElasticsearchInfosTable internal constructor() : TableView<TableEntry>(
     override fun getTableHeader(): JTableHeader {
         val header = super.getTableHeader()
         header.background = MyUIUtils.getPropertiesTableHeaderColor()
-        header.border = JBUI.Borders.customLine(JBUI.CurrentTheme.ToolWindow.borderColor(), 1, 0, 0, 0)
+        header.border = JBUI.Borders.customLine(JBColor.border(), 1, 0, 0, 0)
         return header
     }
 

@@ -16,7 +16,6 @@
 
 package org.elasticsearch4idea.ui.editor.table
 
-import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.ui.ColoredTableCellRenderer
 import com.intellij.ui.SimpleTextAttributes
 import org.elasticsearch4idea.utils.MyUIUtils
@@ -38,7 +37,7 @@ class ResultTableCellRenderer : ColoredTableCellRenderer() {
         background = when {
             table?.isCellSelected(row, column) == true -> MyUIUtils.getSelectedCellColor()
             table?.isRowSelected(row) == true -> MyUIUtils.getSelectedLineColor()
-            else -> EditorColorsManager.getInstance().globalScheme.defaultBackground
+            else -> MyUIUtils.getEditorBackground()
         }
 
         if (value == null) {

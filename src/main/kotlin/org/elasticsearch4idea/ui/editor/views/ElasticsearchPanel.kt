@@ -31,6 +31,7 @@ import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.Splitter
 import com.intellij.ui.EnumComboBoxModel
+import com.intellij.ui.JBColor
 import com.intellij.ui.SearchTextField
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
@@ -106,7 +107,7 @@ class ElasticsearchPanel(
         Utils.setSmallerFontForChildren(actionToolBar)
 
         val panel = BorderLayoutPanel()
-        panel.border = JBUI.Borders.customLine(JBUI.CurrentTheme.ToolWindow.borderColor(), 0, 0, 1, 0)
+        panel.border = JBUI.Borders.customLine(JBColor.border(), 0, 0, 1, 0)
         panel.add(methodCombo, BorderLayout.WEST)
         panel.add(urlField, BorderLayout.CENTER)
         panel.add(actionToolBar.component, BorderLayout.EAST)

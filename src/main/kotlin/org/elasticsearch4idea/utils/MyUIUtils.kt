@@ -60,4 +60,8 @@ object MyUIUtils {
     fun getSelectedCellColor(): Color {
         return EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.SELECTION_BACKGROUND_COLOR)!!
     }
+
+    fun getEditorBackground(): Color {
+        return EditorColorsManager.getInstance().globalScheme.defaultBackground
+    }
 }

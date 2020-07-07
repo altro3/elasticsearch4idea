@@ -28,6 +28,7 @@ import com.intellij.ui.table.TableView
 import com.intellij.util.ui.ColumnInfo
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.ListTableModel
+import org.elasticsearch4idea.ui.editor.table.NumberColumnCellRenderer
 import org.elasticsearch4idea.ui.editor.table.ResultTableCellRenderer
 import org.elasticsearch4idea.ui.editor.table.ResultTableHeaderRenderer
 import org.elasticsearch4idea.utils.MyUIUtils
@@ -44,7 +45,7 @@ import kotlin.math.min
 
 
 class ResultTable internal constructor(
-    columns: Array<ResultTableColumnInfo>,
+    columns: Array<ColumnInfo<ResultTableEntry, *>>,
     entries: List<ResultTableEntry>,
     val label: String
 ) : TableView<ResultTable.ResultTableEntry>(ListTableModel(columns, entries)) {
@@ -123,10 +124,11 @@ class ResultTable internal constructor(
                     }
                 }
                 val entries = (hits.get("hits") as ArrayNode).asIterable().asSequence()
-                    .map { convertHit(it as ObjectNode) }
+                    .mapIndexed { index, it -> convertHit(index, it as ObjectNode) }
                     .toList()
 
-                val columns = entries.asSequence()
+                val columns = mutableListOf<ColumnInfo<ResultTableEntry, *>>(NumbersColumnInfo())
+                entries.asSequence()
                     .flatMap { it.values.keys.asSequence() }
                     .distinct()
                     .sorted()
@@ -135,7 +137,8 @@ class ResultTable internal constructor(
                             it
                         )
                     }
-                    .toList()
+                    .forEach { columns.add(it) }
+
 
                 val label = "Searched $successfulShards of $totalShards shards, $total hits, $tookString seconds."
 
@@ -149,7 +152,7 @@ class ResultTable internal constructor(
             }
         }
 
-        private fun convertHit(hit: ObjectNode): ResultTableEntry {
+        private fun convertHit(index: Int, hit: ObjectNode): ResultTableEntry {
             val propertiesMultiMap = ArrayListMultimap.create<String, Any?>()
             hit.fields()
                 .forEach {
@@ -168,7 +171,7 @@ class ResultTable internal constructor(
                     }
                 }
                 .toMap()
-            return ResultTableEntry(propertiesMap)
+            return ResultTableEntry(index + 1, propertiesMap)
         }
 
         private fun collectValues(key: String, jsonNode: JsonNode, values: ArrayListMultimap<String, Any?>) {
@@ -231,6 +234,21 @@ class ResultTable internal constructor(
 
     }
 
-    class ResultTableEntry(val values: Map<String, Collection<Any?>>)
+    class NumbersColumnInfo : ColumnInfo<ResultTableEntry, Any?>("") {
+
+        override fun valueOf(item: ResultTableEntry?): Any? {
+            return item?.number
+        }
+
+        override fun getRenderer(item: ResultTableEntry): TableCellRenderer {
+            return NumberColumnCellRenderer.instance
+        }
+
+    }
+
+    class ResultTableEntry(
+        val number: Int,
+        val values: Map<String, Collection<Any?>>
+    )
 
 }
