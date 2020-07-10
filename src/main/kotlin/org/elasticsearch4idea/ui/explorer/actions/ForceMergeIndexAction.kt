@@ -18,21 +18,17 @@ package org.elasticsearch4idea.ui.explorer.actions
 
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.components.service
-import com.intellij.openapi.progress.ProgressIndicator
-import com.intellij.openapi.progress.ProgressManager
-import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.DumbAwareAction
 import org.elasticsearch4idea.service.ElasticsearchManager
 import org.elasticsearch4idea.ui.explorer.ElasticsearchExplorer
 import org.elasticsearch4idea.ui.explorer.dialogs.ForceMergeIndexDialog
+import org.elasticsearch4idea.utils.TaskUtils
 
 class ForceMergeIndexAction(private val elasticsearchExplorer: ElasticsearchExplorer) :
     DumbAwareAction("Force merge...", "Force merge index", null) {
 
     override fun actionPerformed(event: AnActionEvent) {
         val index = elasticsearchExplorer.getSelectedIndex() ?: return
-        val project = event.project!!
-
         val dialog = ForceMergeIndexDialog(elasticsearchExplorer)
 
         dialog.show()
@@ -40,18 +36,18 @@ class ForceMergeIndexAction(private val elasticsearchExplorer: ElasticsearchExpl
             return
         }
 
-        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Force merging index...", false) {
-            override fun run(indicator: ProgressIndicator) {
-                val elasticsearchManager = project.service<ElasticsearchManager>()
-                elasticsearchManager.forceMergeIndex(
-                    index,
-                    dialog.maxNumSegments.toInt(),
-                    dialog.onlyExpungeDeletes,
-                    dialog.flush
-                )
-                elasticsearchExplorer.updateNodeInfo()
-            }
-        })
+        TaskUtils.runBackgroundTask("Force merging index...") {
+            val elasticsearchManager = event.project!!.service<ElasticsearchManager>()
+            elasticsearchManager.prepareForceMergeIndex(
+                index,
+                dialog.maxNumSegments.toInt(),
+                dialog.onlyExpungeDeletes,
+                dialog.flush
+            )
+                .onSuccess {
+                    elasticsearchExplorer.updateNodeInfo()
+                }
+        }
     }
 
     override fun update(event: AnActionEvent) {

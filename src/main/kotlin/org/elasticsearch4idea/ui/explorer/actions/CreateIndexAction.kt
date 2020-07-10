@@ -18,21 +18,17 @@ package org.elasticsearch4idea.ui.explorer.actions
 
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.components.service
-import com.intellij.openapi.progress.ProgressIndicator
-import com.intellij.openapi.progress.ProgressManager
-import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.DumbAwareAction
 import org.elasticsearch4idea.service.ElasticsearchManager
 import org.elasticsearch4idea.ui.explorer.ElasticsearchExplorer
 import org.elasticsearch4idea.ui.explorer.dialogs.CreateIndexDialog
+import org.elasticsearch4idea.utils.TaskUtils
 
 class CreateIndexAction(private val elasticsearchExplorer: ElasticsearchExplorer) :
     DumbAwareAction("New index", "Create index", null) {
 
     override fun actionPerformed(event: AnActionEvent) {
         val cluster = elasticsearchExplorer.getSelectedCluster() ?: return
-        val project = event.project!!
-
         val dialog = CreateIndexDialog(elasticsearchExplorer)
 
         dialog.show()
@@ -40,17 +36,15 @@ class CreateIndexAction(private val elasticsearchExplorer: ElasticsearchExplorer
             return
         }
 
-        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Creating index...", false) {
-            override fun run(indicator: ProgressIndicator) {
-                val elasticsearchManager = project.service<ElasticsearchManager>()
-                elasticsearchManager.createIndex(
-                    cluster,
-                    dialog.indexName,
-                    dialog.numberOfShards.toInt(),
-                    dialog.numberOfReplicas.toInt()
-                )
-            }
-        })
+        TaskUtils.runBackgroundTask("Creating index...") {
+            val elasticsearchManager = event.project!!.service<ElasticsearchManager>()
+            elasticsearchManager.prepareCreateIndex(
+                cluster,
+                dialog.indexName,
+                dialog.numberOfShards.toInt(),
+                dialog.numberOfReplicas.toInt()
+            )
+        }
     }
 
     override fun update(event: AnActionEvent) {

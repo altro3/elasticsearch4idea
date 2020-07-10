@@ -45,5 +45,5 @@ class ClusterConfiguration(
         val trustStorePassword: String?,
         val keyStorePassword: String?
     )
-    
+
 }

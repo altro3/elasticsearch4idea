@@ -22,9 +22,6 @@ import com.intellij.openapi.actionSystem.impl.ActionToolbarImpl
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.keymap.KeymapUtil
-import com.intellij.openapi.progress.ProgressIndicator
-import com.intellij.openapi.progress.ProgressManager
-import com.intellij.openapi.progress.Task.Backgroundable
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
@@ -44,6 +41,7 @@ import org.elasticsearch4idea.service.ElasticsearchManager
 import org.elasticsearch4idea.ui.editor.ElasticsearchFile
 import org.elasticsearch4idea.ui.editor.actions.ExecuteQueryAction
 import org.elasticsearch4idea.ui.editor.actions.ViewAsActionGroup
+import org.elasticsearch4idea.utils.TaskUtils
 import java.awt.BorderLayout
 import java.awt.Dimension
 import javax.swing.JPanel
@@ -115,26 +113,24 @@ class ElasticsearchPanel(
     }
 
     fun executeQuery() {
-        ProgressManager.getInstance().run(object : Backgroundable(project, "Execute request") {
-            override fun run(indicator: ProgressIndicator) {
-                try {
-                    val elasticsearchManager = project.service<ElasticsearchManager>()
-                    val url = "${elasticsearchFile.cluster.host}/${urlField.text}"
-                    val request = Request(url, bodyPanel.getBody(), methodCombo.selectedItem as Method)
-                    val response = elasticsearchManager.executeRequest(request, elasticsearchFile.cluster)
-
+        TaskUtils.runBackgroundTask("Executing request...") {
+            val elasticsearchManager = project.service<ElasticsearchManager>()
+            val url = "${elasticsearchFile.cluster.host}/${urlField.text}"
+            val request = Request(url, bodyPanel.getBody(), methodCombo.selectedItem as Method)
+            elasticsearchManager.prepareExecuteRequest(request, elasticsearchFile.cluster)
+                .onSuccess {
                     WriteCommandAction.runWriteCommandAction(project) {
                         UIUtil.invokeLaterIfNeeded {
-                            resultPanel.updateResult(response.content)
+                            resultPanel.updateResult(it.content)
                         }
                     }
-                } catch (ex: Exception) {
+                }
+                .onError {
                     UIUtil.invokeLaterIfNeeded {
-                        Messages.showErrorDialog(ex.message, "Error")
+                        Messages.showErrorDialog(it.message, "Error")
                     }
                 }
-            }
-        })
+        }
     }
 
     fun showResults() {

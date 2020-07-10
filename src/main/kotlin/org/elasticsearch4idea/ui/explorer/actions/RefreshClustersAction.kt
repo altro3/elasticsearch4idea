@@ -19,12 +19,10 @@ package org.elasticsearch4idea.ui.explorer.actions
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.components.service
-import com.intellij.openapi.progress.ProgressIndicator
-import com.intellij.openapi.progress.ProgressManager
-import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.DumbAwareAction
 import org.elasticsearch4idea.service.ElasticsearchManager
 import org.elasticsearch4idea.ui.explorer.ElasticsearchExplorer
+import org.elasticsearch4idea.utils.TaskUtils
 import java.awt.Toolkit
 import java.awt.event.KeyEvent
 
@@ -41,16 +39,14 @@ class RefreshClustersAction(private val elasticsearchExplorer: ElasticsearchExpl
 
     override fun actionPerformed(event: AnActionEvent) {
         val elasticsearchManager = event.project!!.service<ElasticsearchManager>()
-        ProgressManager.getInstance()
-            .run(object : Task.Backgroundable(event.project!!, "Getting Elasticsearch cluster info", false) {
-                override fun run(indicator: ProgressIndicator) {
-                    val clusterLabels = elasticsearchExplorer.getSelectedClusters().asSequence()
-                        .filter { !it.isLoading() }
-                        .map { it.label }
-                        .toList()
-                    elasticsearchManager.fetchClusters(clusterLabels)
+        elasticsearchExplorer.getSelectedClusters().asSequence()
+            .filter { !it.isLoading() }
+            .map { it.label }
+            .forEach {
+                TaskUtils.runBackgroundTask("Getting Elasticsearch cluster info...") {
+                    elasticsearchManager.prepareFetchCluster(it)
                 }
-            })
+            }
     }
 
     override fun update(event: AnActionEvent) {

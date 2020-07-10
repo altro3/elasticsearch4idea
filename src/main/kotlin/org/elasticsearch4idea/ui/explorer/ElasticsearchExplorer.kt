@@ -25,9 +25,6 @@ import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
-import com.intellij.openapi.progress.ProgressIndicator
-import com.intellij.openapi.progress.ProgressManager
-import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.SimpleToolWindowPanel
 import com.intellij.openapi.ui.Splitter
@@ -56,6 +53,7 @@ import org.elasticsearch4idea.ui.explorer.table.ElasticsearchInfosTable
 import org.elasticsearch4idea.ui.explorer.tree.ClusterNodeDescriptor
 import org.elasticsearch4idea.ui.explorer.tree.ElasticsearchExplorerTreeStructure
 import org.elasticsearch4idea.ui.explorer.tree.IndexNodeDescriptor
+import org.elasticsearch4idea.utils.TaskUtils
 import java.awt.BorderLayout
 import java.awt.event.ActionEvent
 import java.awt.event.KeyEvent
@@ -94,12 +92,7 @@ class ElasticsearchExplorer(
 
         setContent(splitter)
 
-        ProgressManager.getInstance()
-            .run(object : Task.Backgroundable(project, "Getting Elasticsearch cluster info", false) {
-                override fun run(indicator: ProgressIndicator) {
-                    elasticsearchManager.createAllClusters()
-                }
-            })
+        elasticsearchManager.createAllClusters()
     }
 
     private fun createTree(): Tree {
@@ -154,38 +147,28 @@ class ElasticsearchExplorer(
     }
 
     fun updateNodeInfo() {
-        ApplicationManager.getApplication().invokeLater {
-            table.updateInfos(emptyList())
-        }
         val cluster = this.getSelectedCluster()
         if (cluster != null && cluster.isLoaded()) {
-            ProgressManager.getInstance()
-                .run(object : Task.Backgroundable(project, "Getting Elasticsearch cluster info", false) {
-                    override fun run(indicator: ProgressIndicator) {
-                        val infos = elasticsearchManager.getClusterInfo(cluster)?.toTableEntryList()
-                        if (infos != null) {
-                            ApplicationManager.getApplication().invokeLater {
-                                table.updateInfos(infos)
-                            }
+            TaskUtils.runBackgroundTask("Getting Elasticsearch cluster info...") {
+                elasticsearchManager.prepareGetClusterInfo(cluster)
+                    .finally { clusterInfo, _ ->
+                        ApplicationManager.getApplication().invokeLater {
+                            table.updateInfos(clusterInfo?.toTableEntryList().orEmpty())
                         }
                     }
-                })
+            }
             return
         }
         val index = this.getSelectedIndex()
         if (index != null && index.cluster.isLoaded()) {
-            ProgressManager.getInstance()
-                .run(object : Task.Backgroundable(project, "Getting Elasticsearch index info", false) {
-                    override fun run(indicator: ProgressIndicator) {
-                        val infos = elasticsearchManager.getIndexInfo(index)?.toTableEntryList()
-                        if (infos != null) {
-                            ApplicationManager.getApplication().invokeLater {
-                                table.updateInfos(infos)
-                            }
+            TaskUtils.runBackgroundTask("Getting Elasticsearch index info...") {
+                elasticsearchManager.prepareGetIndexInfo(index)
+                    .finally { indexInfo, _ ->
+                        ApplicationManager.getApplication().invokeLater {
+                            table.updateInfos(indexInfo?.toTableEntryList().orEmpty())
                         }
                     }
-                })
-            return
+            }
         }
     }
 
@@ -307,12 +290,9 @@ class ElasticsearchExplorer(
         }
         val cluster = getSelectedCluster()
         if (cluster != null) {
-            ProgressManager.getInstance()
-                .run(object : Task.Backgroundable(project, "Getting Elasticsearch cluster info", false) {
-                    override fun run(indicator: ProgressIndicator) {
-                        elasticsearchManager.fetchClusters(listOf(cluster.label))
-                    }
-                })
+            TaskUtils.runBackgroundTask("Getting Elasticsearch cluster info...") {
+                elasticsearchManager.prepareFetchCluster(cluster.label)
+            }
             return
         }
     }

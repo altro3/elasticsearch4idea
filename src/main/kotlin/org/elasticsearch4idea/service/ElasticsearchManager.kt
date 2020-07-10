@@ -25,6 +25,7 @@ import com.intellij.util.EventDispatcher
 import com.intellij.util.ui.UIUtil
 import org.elasticsearch4idea.model.*
 import org.elasticsearch4idea.rest.ElasticsearchClient
+import org.elasticsearch4idea.rest.model.Index
 import org.elasticsearch4idea.ui.ElasticsearchClustersListener
 import java.util.concurrent.ConcurrentHashMap
 
@@ -54,51 +55,94 @@ class ElasticsearchManager(project: Project) : Disposable {
         elasticsearchConfiguration.getConfigurations().forEach {
             val cluster = createOrUpdateCluster(it)
             ApplicationManager.getApplication()
-                .invokeAndWait { eventDispatcher.multicaster.clusterAdded(cluster) }
+                .invokeLater { eventDispatcher.multicaster.clusterAdded(cluster) }
         }
     }
 
-    fun fetchClusters(clusterLabels: Collection<String>) {
-        clusterLabels.asSequence()
-            .map { elasticsearchConfiguration.getConfiguration(it) }
-            .filterNotNull()
-            .forEach { fetchCluster(it) }
+    fun prepareFetchCluster(clusterLabel: String): RequestExecution<*> {
+        val clusterConfiguration = elasticsearchConfiguration.getConfiguration(clusterLabel)
+        if (clusterConfiguration != null) {
+            return prepareFetchCluster(clusterConfiguration)
+        }
+        return RequestExecution.empty()
     }
 
-    fun addCluster(clusterConfig: ClusterConfiguration) {
-        fetchCluster(clusterConfig)
+    fun prepareAddCluster(clusterConfig: ClusterConfiguration): RequestExecution<*> {
+        return prepareFetchCluster(clusterConfig)
     }
 
-    fun changeCluster(previousLabel: String, clusterConfig: ClusterConfiguration) {
+    fun prepareChangeCluster(previousLabel: String, clusterConfig: ClusterConfiguration): RequestExecution<*> {
         val isNewLabel = clusterConfig.label != previousLabel
         if (isNewLabel) {
             removeCluster(previousLabel)
         }
-        fetchCluster(clusterConfig)
+        return prepareFetchCluster(clusterConfig)
     }
 
-    private fun fetchCluster(clusterConfig: ClusterConfiguration) {
+    private fun prepareFetchCluster(clusterConfig: ClusterConfiguration): RequestExecution<*> {
         val isNewCluster = !clusters.containsKey(clusterConfig.label)
         elasticsearchConfiguration.putClusterConfiguration(clusterConfig)
         val cluster = createOrUpdateCluster(clusterConfig)
-        cluster.status = ElasticsearchCluster.Status.LOADING
-        if (isNewCluster) {
-            ApplicationManager.getApplication()
-                .invokeAndWait { eventDispatcher.multicaster.clusterAdded(cluster) }
-        } else {
-            ApplicationManager.getApplication()
-                .invokeAndWait { eventDispatcher.multicaster.clusterChanged(cluster) }
-        }
+        val clusterStatsRequest = getClient(cluster).prepareGetClusterStats()
+        val indicesRequest = getClient(cluster).prepareGetIndices()
+        return RequestExecution(
+            execution = {
+                cluster.status = ElasticsearchCluster.Status.LOADING
+                if (isNewCluster) {
+                    ApplicationManager.getApplication()
+                        .invokeAndWait { eventDispatcher.multicaster.clusterAdded(cluster) }
+                } else {
+                    ApplicationManager.getApplication()
+                        .invokeAndWait { eventDispatcher.multicaster.clusterChanged(cluster) }
+                }
 
-        fetchClusterStats(cluster)
+                val clusterStatsFuture = clusterStatsRequest.executeOnPooledThread()
+                val indicesFuture = indicesRequest.executeOnPooledThread()
 
-        if (cluster.status == ElasticsearchCluster.Status.LOADED) {
-            fetchIndices(cluster)
-        } else {
-            cluster.indices.clear()
+                clusterStatsFuture.thenAcceptBoth(indicesFuture) { clusterStats, indices ->
+                    cluster.apply {
+                        clusterName = clusterStats.clusterName
+                        healthStatus = clusterStats.status
+                    }
+                    mergeIndices(cluster, indices)
+                }.get()
+            },
+            onAbort = {
+                clusterStatsRequest.abort()
+                indicesRequest.abort()
+            }
+        )
+            .onSuccess {
+                cluster.status = ElasticsearchCluster.Status.LOADED
+            }
+            .onError {
+                cluster.indices.clear()
+                cluster.status = ElasticsearchCluster.Status.NOT_LOADED
+            }
+            .finally { _, _ ->
+                ApplicationManager.getApplication()
+                    .invokeAndWait { eventDispatcher.multicaster.clusterChanged(cluster) }
+            }
+    }
+
+    private fun mergeIndices(cluster: ElasticsearchCluster, indices: List<Index>) {
+        val indexesByName = indices.associateBy { it.name }
+        cluster.indices.removeIf { !indexesByName.containsKey(it.name) }
+        val oldIndexesByName = cluster.indices.associateBy { it.name }
+        indices.forEach {
+            val index = if (oldIndexesByName.containsKey(it.name)) {
+                oldIndexesByName[it.name]!!
+            } else {
+                val index = ElasticsearchIndex(it.name)
+                cluster.addIndex(index)
+                index
+            }
+            index.apply {
+                healthStatus = it.health
+                status = it.status
+                this.cluster = cluster
+            }
         }
-        ApplicationManager.getApplication()
-            .invokeAndWait { eventDispatcher.multicaster.clusterChanged(cluster) }
     }
 
     private fun createOrUpdateCluster(configuration: ClusterConfiguration): ElasticsearchCluster {
@@ -108,39 +152,22 @@ class ElasticsearchManager(project: Project) : Disposable {
             .apply { host = configuration.url }
     }
 
-    private fun fetchClusterStats(cluster: ElasticsearchCluster): ElasticsearchCluster {
-        val clusterStats = runSafely {
-            getClient(cluster).getClusterStats()
-        }
-        cluster.apply {
-            status =
-                if (clusterStats == null) ElasticsearchCluster.Status.NOT_LOADED else ElasticsearchCluster.Status.LOADED
-            clusterName = clusterStats?.clusterName
-            healthStatus = clusterStats?.status
-        }
-        return cluster
-    }
-
-    private fun fetchIndices(cluster: ElasticsearchCluster): ElasticsearchCluster {
-        val indexesByName = cluster.indices.associateBy { it.name }
-        cluster.indices.clear()
+    private fun prepareFetchIndices(cluster: ElasticsearchCluster): RequestExecution<*> {
         cluster.status = ElasticsearchCluster.Status.NOT_LOADED
-        runSafely {
-            val indices = getClient(cluster).getIndices()
-            indices.forEach {
-                val index = indexesByName.getOrDefault(it.name, ElasticsearchIndex(it.name))
-                    .apply {
-                        healthStatus = it.health
-                        status = it.status
-                        this.cluster = cluster
-                    }
-                cluster.addIndex(index)
+        return getClient(cluster).prepareGetIndices()
+            .onSuccess {
+                mergeIndices(cluster, it)
+                cluster.status = ElasticsearchCluster.Status.LOADED
+
             }
-            cluster.status = ElasticsearchCluster.Status.LOADED
-        }
-        ApplicationManager.getApplication()
-            .invokeLater { eventDispatcher.multicaster.clusterChanged(cluster) }
-        return cluster
+            .onError {
+                cluster.indices.clear()
+                cluster.status = ElasticsearchCluster.Status.NOT_LOADED
+            }
+            .finally { _, _ ->
+                ApplicationManager.getApplication()
+                    .invokeLater { eventDispatcher.multicaster.clusterChanged(cluster) }
+            }
     }
 
     fun removeCluster(label: String) {
@@ -151,43 +178,55 @@ class ElasticsearchManager(project: Project) : Disposable {
             .invokeLater { eventDispatcher.multicaster.clusterRemoved(cluster) }
     }
 
-    fun getClusterInfo(cluster: ElasticsearchCluster): ElasticsearchClusterInfo? {
-        return runSafely {
-            val clusterStats = getClient(cluster).getClusterStats()
-            ElasticsearchClusterInfo(clusterStats)
-        }
+    fun prepareGetClusterInfo(cluster: ElasticsearchCluster): RequestExecution<ElasticsearchClusterInfo> {
+        return getClient(cluster).prepareGetClusterStats()
+            .map { ElasticsearchClusterInfo(it) }
     }
 
-    fun getIndexInfo(index: ElasticsearchIndex): ElasticsearchIndexInfo? {
-        return runSafely {
-            val indexShortInfo = getClient(index).getIndex(index.name)
-            val indexInfo = getClient(index).getIndexInfo(index.name)
-            ElasticsearchIndexInfo(indexShortInfo, indexInfo)
-        }
-    }
-
-    fun deleteIndex(index: ElasticsearchIndex) {
-        runSafely(true) {
-            val response = getClient(index).execute(
-                Request(
-                    urlPath = "${index.cluster.host}/${index.name}",
-                    method = Method.DELETE
-                )
-            )
-            UIUtil.invokeLaterIfNeeded {
-                Messages.showInfoMessage(response.content, "Index '${index.name}' deleted")
+    fun prepareGetIndexInfo(index: ElasticsearchIndex): RequestExecution<ElasticsearchIndexInfo> {
+        val indexShortInfoRequest = getClient(index).prepareGetIndex(index.name)
+        val indexInfoRequest = getClient(index).prepareGetIndexInfo(index.name)
+        return RequestExecution(
+            execution = {
+                val indexShortInfoFuture = indexShortInfoRequest.executeOnPooledThread()
+                val indexInfoFuture = indexInfoRequest.executeOnPooledThread()
+                indexShortInfoFuture.thenCombine(indexInfoFuture) { indexShortInfo, indexInfo ->
+                    ElasticsearchIndexInfo(indexShortInfo, indexInfo)
+                }
+                    .get()
+            },
+            onAbort = {
+                indexShortInfoRequest.abort()
+                indexInfoRequest.abort()
             }
-        }
-        fetchIndices(index.cluster)
+        )
     }
 
-    fun createIndex(cluster: ElasticsearchCluster, indexName: String, numberOfShards: Int, numberOfReplicas: Int) {
-        runSafely(true) {
-            val response = getClient(cluster).execute(
-                Request(
-                    urlPath = "${cluster.host}/$indexName",
-                    method = Method.PUT,
-                    body = """{
+    fun prepareDeleteIndex(index: ElasticsearchIndex): RequestExecution<*> {
+        return getClient(index).prepareExecution(
+            Request(
+                urlPath = "${index.cluster.host}/${index.name}",
+                method = Method.DELETE
+            )
+        )
+            .onError(::showErrorMessage)
+            .onSuccess {
+                showInfoMessage(it.content, "Index '${index.name}' deleted")
+                prepareFetchIndices(index.cluster).execute()
+            }
+    }
+
+    fun prepareCreateIndex(
+        cluster: ElasticsearchCluster,
+        indexName: String,
+        numberOfShards: Int,
+        numberOfReplicas: Int
+    ): RequestExecution<*> {
+        return getClient(cluster).prepareExecution(
+            Request(
+                urlPath = "${cluster.host}/$indexName",
+                method = Method.PUT,
+                body = """{
         "settings" : {
             "index" : {
                 "number_of_shards" : $numberOfShards, 
@@ -195,110 +234,111 @@ class ElasticsearchManager(project: Project) : Disposable {
             }
         }
     }"""
-                )
             )
-            UIUtil.invokeLaterIfNeeded {
-                Messages.showInfoMessage(response.content, "Index '$indexName' created")
+        )
+            .onError(::showErrorMessage)
+            .onSuccess {
+                showInfoMessage(it.content, "Index '$indexName' created")
+                prepareFetchIndices(cluster).execute()
             }
-        }
-        fetchIndices(cluster)
     }
 
-    fun createAlias(index: ElasticsearchIndex, alias: String) {
-        runSafely(true) {
-            val response = getClient(index).execute(
-                Request(
-                    urlPath = "${index.cluster.host}/${index.name}/_alias/$alias",
-                    method = Method.PUT
-                )
+    fun prepareCreateAlias(index: ElasticsearchIndex, alias: String): RequestExecution<*> {
+        return getClient(index).prepareExecution(
+            Request(
+                urlPath = "${index.cluster.host}/${index.name}/_alias/$alias",
+                method = Method.PUT
             )
-            UIUtil.invokeLaterIfNeeded {
-                Messages.showInfoMessage(response.content, "Alias '$alias' created")
+        )
+            .onError(::showErrorMessage)
+            .onSuccess {
+                showInfoMessage(it.content, "Alias '$alias' created")
             }
-        }
     }
 
-    fun refreshIndex(index: ElasticsearchIndex) {
-        runSafely(true) {
-            val response = getClient(index).execute(
-                Request(
-                    urlPath = "${index.cluster.host}/${index.name}/_refresh",
-                    method = Method.POST
-                )
+    fun prepareRefreshIndex(index: ElasticsearchIndex): RequestExecution<*> {
+        return getClient(index).prepareExecution(
+            Request(
+                urlPath = "${index.cluster.host}/${index.name}/_refresh",
+                method = Method.POST
             )
-            UIUtil.invokeLaterIfNeeded {
-                Messages.showInfoMessage(response.content, "Index '${index.name}' refreshed")
+        )
+            .onError(::showErrorMessage)
+            .onSuccess {
+                showInfoMessage(it.content, "Index '${index.name}' refreshed")
             }
-        }
     }
 
-    fun flushIndex(index: ElasticsearchIndex) {
-        runSafely(true) {
-            val response = getClient(index).execute(
-                Request(
-                    urlPath = "${index.cluster.host}/${index.name}/_flush",
-                    method = Method.POST
-                )
+    fun prepareFlushIndex(index: ElasticsearchIndex): RequestExecution<*> {
+        return getClient(index).prepareExecution(
+            Request(
+                urlPath = "${index.cluster.host}/${index.name}/_flush",
+                method = Method.POST
             )
-            UIUtil.invokeLaterIfNeeded {
-                Messages.showInfoMessage(response.content, "Index '${index.name}' flushed")
+        )
+            .onError(::showErrorMessage)
+            .onSuccess {
+                showInfoMessage(it.content, "Index '${index.name}' flushed")
             }
-        }
     }
 
-    fun forceMergeIndex(index: ElasticsearchIndex, maxNumSegments: Int, onlyExpungeDeletes: Boolean, flush: Boolean) {
-        runSafely(true) {
-            val response = getClient(index).execute(
-                Request(
-                    urlPath = "${index.cluster.host}/${index.name}/_forcemerge?" +
-                            "only_expunge_deletes=$onlyExpungeDeletes&max_num_segments=$maxNumSegments&flush=$flush",
-                    method = Method.POST
-                )
+    fun prepareForceMergeIndex(
+        index: ElasticsearchIndex,
+        maxNumSegments: Int,
+        onlyExpungeDeletes: Boolean,
+        flush: Boolean
+    ): RequestExecution<*> {
+        return getClient(index).prepareExecution(
+            Request(
+                urlPath = "${index.cluster.host}/${index.name}/_forcemerge?" +
+                        "only_expunge_deletes=$onlyExpungeDeletes&max_num_segments=$maxNumSegments&flush=$flush",
+                method = Method.POST
             )
-            UIUtil.invokeLaterIfNeeded {
-                Messages.showInfoMessage(response.content, "Force merge '${index.name}' performed")
+        )
+            .onError(::showErrorMessage)
+            .onSuccess {
+                showInfoMessage(it.content, "Force merge '${index.name}' performed")
             }
-        }
     }
 
-    fun closeIndex(index: ElasticsearchIndex) {
-        runSafely(true) {
-            val response = getClient(index).execute(
-                Request(
-                    urlPath = "${index.cluster.host}/${index.name}/_close",
-                    method = Method.POST
-                )
+    fun prepareCloseIndex(index: ElasticsearchIndex): RequestExecution<*> {
+        return getClient(index).prepareExecution(
+            Request(
+                urlPath = "${index.cluster.host}/${index.name}/_close",
+                method = Method.POST
             )
-            UIUtil.invokeLaterIfNeeded {
-                Messages.showInfoMessage(response.content, "Index '${index.name}' closed")
+        )
+            .onError(::showErrorMessage)
+            .onSuccess {
+                showInfoMessage(it.content, "Index '${index.name}' closed")
+                prepareFetchIndices(index.cluster).execute()
             }
-        }
-        fetchIndices(index.cluster)
     }
 
-    fun openIndex(index: ElasticsearchIndex) {
-        runSafely(true) {
-            val response = getClient(index).execute(
-                Request(
-                    urlPath = "${index.cluster.host}/${index.name}/_open",
-                    method = Method.POST
-                )
+    fun prepareOpenIndex(index: ElasticsearchIndex): RequestExecution<*> {
+        return getClient(index).prepareExecution(
+            Request(
+                urlPath = "${index.cluster.host}/${index.name}/_open",
+                method = Method.POST
             )
-            UIUtil.invokeLaterIfNeeded {
-                Messages.showInfoMessage(response.content, "Index '${index.name}' opened")
+        )
+            .onError(::showErrorMessage)
+            .onSuccess {
+                showInfoMessage(it.content, "Index '${index.name}' opened")
+                prepareFetchIndices(index.cluster).execute()
             }
-        }
-        fetchIndices(index.cluster)
     }
 
-    fun testConnection(configuration: ClusterConfiguration) {
-        ElasticsearchClient(configuration).use {
-            it.testConnection()
-        }
+    fun prepareTestConnection(configuration: ClusterConfiguration): RequestExecution<*> {
+        val elasticsearchClient = ElasticsearchClient(configuration)
+        return elasticsearchClient.prepareTestConnection()
+            .finally { _, _ ->
+                elasticsearchClient.close()
+            }
     }
 
-    fun executeRequest(request: Request, cluster: ElasticsearchCluster): Response {
-        return getClient(cluster).execute(request, false)
+    fun prepareExecuteRequest(request: Request, cluster: ElasticsearchCluster): RequestExecution<Response> {
+        return getClient(cluster).prepareExecution(request, false)
     }
 
     private fun getClient(index: ElasticsearchIndex): ElasticsearchClient {
@@ -313,16 +353,15 @@ class ElasticsearchManager(project: Project) : Disposable {
         return clients[label]!!
     }
 
-    private fun <R> runSafely(showErrorMessage: Boolean = false, function: () -> R): R? {
-        return try {
-            function.invoke()
-        } catch (e: Exception) {
-            if (showErrorMessage) {
-                UIUtil.invokeLaterIfNeeded {
-                    Messages.showErrorDialog(e.message ?: e.toString(), "Error")
-                }
-            }
-            null
+    private fun showErrorMessage(e: Exception) {
+        UIUtil.invokeLaterIfNeeded {
+            Messages.showErrorDialog(e.message ?: e.toString(), "Error")
+        }
+    }
+
+    private fun showInfoMessage(message: String, title: String) {
+        UIUtil.invokeLaterIfNeeded {
+            Messages.showInfoMessage(message, title)
         }
     }
 

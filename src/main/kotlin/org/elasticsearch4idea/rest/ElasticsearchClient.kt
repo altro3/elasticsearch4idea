@@ -32,10 +32,7 @@ import org.apache.http.entity.StringEntity
 import org.apache.http.impl.client.CloseableHttpClient
 import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.message.BasicHeader
-import org.elasticsearch4idea.model.ClusterConfiguration
-import org.elasticsearch4idea.model.Method
-import org.elasticsearch4idea.model.Request
-import org.elasticsearch4idea.model.Response
+import org.elasticsearch4idea.model.*
 import org.elasticsearch4idea.rest.model.*
 import org.elasticsearch4idea.utils.SSLUtils
 import java.io.BufferedReader
@@ -64,56 +61,57 @@ class ElasticsearchClient(clusterConfiguration: ClusterConfiguration) : Closeabl
             .build()
     }
 
-    fun getIndexInfo(index: String): IndexInfo {
+    fun prepareGetIndexInfo(index: String): RequestExecution<IndexInfo> {
         val request = HttpGet("$httpHost/$index")
-        return execute(request, ConvertingResponseHandler {
+        return prepareExecution(request, ConvertingResponseHandler {
             val jsonNode = objectMapper.readTree(it)
             objectMapper.treeToValue(jsonNode.get(index), IndexInfo::class.java)
         })
     }
 
-    fun getIndex(index: String): Index {
-        return getIndices(index).first()
+    fun prepareGetIndex(index: String): RequestExecution<Index> {
+        return prepareGetIndices(index).map { it.first() }
     }
 
-    fun getIndices(index: String? = null): List<Index> {
+    fun prepareGetIndices(index: String? = null): RequestExecution<List<Index>> {
         val url = if (index == null) "$httpHost/_cat/indices?v" else "$httpHost/_cat/indices/$index?v"
         val request = HttpGet(url)
-        val table = execute(request, TableDataResponseHandler())
-
-        val header = table[0].asSequence()
-            .mapIndexed { i, value -> Pair(value, i) }
-            .associate { it }
-        return table.asSequence()
-            .drop(1)
-            .map {
-                Index(
-                    name = it[header.getValue("index")],
-                    health = it[header.getValue("health")].toUpperCase()
-                        .let { health ->
-                            HealthStatus.values().firstOrNull { it.name == health }
-                        },
-                    status = IndexStatus.valueOf(it[header.getValue("status")].toUpperCase()),
-                    primaries = it[header.getValue("pri")],
-                    replicas = it[header.getValue("rep")],
-                    documents = it[header.getValue("docs.count")],
-                    deletedDocuments = it[header.getValue("docs.deleted")],
-                    size = it[header.getValue("store.size")]
-                )
-            }.toList()
+        return prepareExecution(request, TableDataResponseHandler())
+            .map { table ->
+                val header = table[0].asSequence()
+                    .mapIndexed { i, value -> Pair(value, i) }
+                    .associate { it }
+                table.asSequence()
+                    .drop(1)
+                    .map {
+                        Index(
+                            name = it[header.getValue("index")],
+                            health = it[header.getValue("health")].toUpperCase()
+                                .let { health ->
+                                    HealthStatus.values().firstOrNull { it.name == health }
+                                },
+                            status = IndexStatus.valueOf(it[header.getValue("status")].toUpperCase()),
+                            primaries = it[header.getValue("pri")],
+                            replicas = it[header.getValue("rep")],
+                            documents = it[header.getValue("docs.count")],
+                            deletedDocuments = it[header.getValue("docs.deleted")],
+                            size = it[header.getValue("store.size")]
+                        )
+                    }.toList()
+            }
     }
 
-    fun testConnection() {
+    fun prepareTestConnection(): RequestExecution<*> {
         val request = HttpGet("$httpHost")
-        execute(request, JsonResponseHandler(Map::class.java))
+        return prepareExecution(request, JsonResponseHandler(Map::class.java))
     }
 
-    fun getClusterStats(): ClusterStats {
+    fun prepareGetClusterStats(): RequestExecution<ClusterStats> {
         val request = HttpGet("$httpHost/_cluster/stats")
-        return execute(request, JsonResponseHandler(ClusterStats::class.java))
+        return prepareExecution(request, JsonResponseHandler(ClusterStats::class.java))
     }
 
-    fun execute(request: Request, checkResponseSuccess: Boolean = true): Response {
+    fun prepareExecution(request: Request, checkResponseSuccess: Boolean = true): RequestExecution<Response> {
         val httpRequest = when (request.method) {
             Method.GET -> HttpGet(request.urlPath)
             Method.POST -> {
@@ -131,7 +129,7 @@ class ElasticsearchClient(clusterConfiguration: ClusterConfiguration) : Closeabl
             Method.HEAD -> HttpHead(request.urlPath)
             Method.DELETE -> HttpDelete(request.urlPath)
         }
-        return execute(
+        return prepareExecution(
             httpRequest,
             ResponseHandler { response ->
                 if (checkResponseSuccess) {
@@ -145,8 +143,11 @@ class ElasticsearchClient(clusterConfiguration: ClusterConfiguration) : Closeabl
         )
     }
 
-    private fun <T> execute(request: HttpUriRequest, responseHandler: ResponseHandler<T>): T {
-        return client.execute(request, responseHandler)
+    private fun <T> prepareExecution(
+        request: HttpUriRequest,
+        responseHandler: ResponseHandler<T>
+    ): RequestExecution<T> {
+        return RequestExecution({ client.execute(request, responseHandler) }, request::abort)
     }
 
     private class JsonResponseHandler<T>(private val clazz: Class<T>) : ConvertingResponseHandler<T>({

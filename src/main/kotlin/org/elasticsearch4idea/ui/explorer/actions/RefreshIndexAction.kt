@@ -18,25 +18,20 @@ package org.elasticsearch4idea.ui.explorer.actions
 
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.components.service
-import com.intellij.openapi.progress.ProgressIndicator
-import com.intellij.openapi.progress.ProgressManager
-import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.DumbAwareAction
 import org.elasticsearch4idea.service.ElasticsearchManager
 import org.elasticsearch4idea.ui.explorer.ElasticsearchExplorer
+import org.elasticsearch4idea.utils.TaskUtils
 
 class RefreshIndexAction(private val elasticsearchExplorer: ElasticsearchExplorer) :
     DumbAwareAction("Refresh", "Refresh index", null) {
 
     override fun actionPerformed(event: AnActionEvent) {
         val index = elasticsearchExplorer.getSelectedIndex() ?: return
-        val project = event.project!!
-        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Refreshing index...", false) {
-            override fun run(indicator: ProgressIndicator) {
-                val elasticsearchManager = project.service<ElasticsearchManager>()
-                elasticsearchManager.refreshIndex(index)
-            }
-        })
+        TaskUtils.runBackgroundTask("Refreshing index...") {
+            val elasticsearchManager = event.project!!.service<ElasticsearchManager>()
+            elasticsearchManager.prepareRefreshIndex(index)
+        }
     }
 
     override fun update(event: AnActionEvent) {
