@@ -38,6 +38,7 @@ import org.elasticsearch4idea.ui.explorer.ElasticsearchExplorer
 import org.elasticsearch4idea.utils.TaskUtils
 import java.awt.Dimension
 import java.awt.event.ActionEvent
+import java.util.*
 import javax.swing.JPasswordField
 
 class ClusterConfigurationDialog(
@@ -59,6 +60,7 @@ class ClusterConfigurationDialog(
     private val generalPanel: DialogPanel
     private val sslPanel: DialogPanel
 
+    private val previousId = if (editing) previousConfiguration?.id else null
     private val previousName = if (editing) previousConfiguration?.label else null
     private val previousCredentialsStored = if (editing) previousConfiguration?.credentialsStored ?: false else false
     private val previousSslConfigStored = if (editing) previousConfiguration?.sslConfigStored ?: false else false
@@ -232,6 +234,7 @@ class ClusterConfigurationDialog(
 
     fun getConfiguration(): ClusterConfiguration {
         return ClusterConfiguration(
+            id = if (previousId.isNullOrEmpty()) UUID.randomUUID().toString() else previousId,
             label = name,
             url = url,
             credentials = getCredentials(),
