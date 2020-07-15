@@ -38,11 +38,12 @@ class Hit(
             val type = objectNode.get("_type").asText()
             val source = objectNode.get("_source")
             val values = HashMap<String, Any?>()
-            val map = jacksonObjectMapper().convertValue<Map<String, Any?>>(source)
-            map.forEach { (key, value) ->
-                collectValues(key, value, values)
+            if (source != null) {
+                val map = jacksonObjectMapper().convertValue<Map<String, Any?>>(source)
+                map.forEach { (key, value) ->
+                    collectValues(key, value, values)
+                }
             }
-
             return Hit(id, index, score, type, values)
         }
 

@@ -131,7 +131,7 @@ class ResultTable internal constructor(
                     .toList()
 
                 val mappings = Mapping.parseMappings(mappingJson!!)
-                val columns = createColumns(mappings)
+                val columns = createColumns(mappings, entries)
 
 
                 val label = "Searched $successfulShards of $totalShards shards, $total hits, $tookString seconds."
@@ -146,7 +146,10 @@ class ResultTable internal constructor(
             }
         }
 
-        private fun createColumns(mappings: List<Mapping>): List<ColumnInfo<ResultTableEntry, *>> {
+        private fun createColumns(
+            mappings: List<Mapping>,
+            entries: List<ResultTableEntry>
+        ): List<ColumnInfo<ResultTableEntry, *>> {
             val columns = mutableListOf<ColumnInfo<ResultTableEntry, *>>()
             columns.add(NumbersColumnInfo())
             columns.add(ResultTableColumnInfo("_index", null, Hit::index))
@@ -159,11 +162,13 @@ class ResultTable internal constructor(
                     collectColumns(it.key, it.value, mapping, columnNames)
                 }
             }
-            columnNames.asMap().forEach { key, collection ->
-
-                columns.add(ResultTableColumnInfo(key, collection) {
-                    it.values.get(key)
-                })
+            columnNames.asMap().forEach { (key, collection) ->
+                val hasValue = entries.any { it.hit.values.contains(key) }
+                if (hasValue) {
+                    columns.add(ResultTableColumnInfo(key, collection) {
+                        it.values.get(key)
+                    })
+                }
             }
             return columns
         }

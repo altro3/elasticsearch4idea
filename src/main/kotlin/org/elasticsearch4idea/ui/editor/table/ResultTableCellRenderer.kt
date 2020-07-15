@@ -20,6 +20,7 @@ import com.intellij.ui.ColoredTableCellRenderer
 import com.intellij.ui.SimpleTextAttributes
 import org.elasticsearch4idea.utils.MyUIUtils
 import javax.swing.JTable
+import javax.swing.SwingConstants
 import javax.swing.border.EmptyBorder
 
 class ResultTableCellRenderer : ColoredTableCellRenderer() {
@@ -80,6 +81,7 @@ class ResultTableCellRenderer : ColoredTableCellRenderer() {
 
     private fun appendInternal(fragment: String, attributes: SimpleTextAttributes) {
         foreground = attributes.fgColor
+        setTextAlign(SwingConstants.RIGHT)
         append(fragment, attributes)
     }
 
