@@ -28,6 +28,9 @@ import com.intellij.ui.table.TableView
 import com.intellij.util.ui.ColumnInfo
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.ListTableModel
+import org.elasticsearch4idea.ui.editor.model.Hit
+import org.elasticsearch4idea.ui.editor.model.Mapping
+import org.elasticsearch4idea.ui.editor.model.MappingNode
 import org.elasticsearch4idea.ui.editor.table.NumberColumnCellRenderer
 import org.elasticsearch4idea.ui.editor.table.ResultTableCellRenderer
 import org.elasticsearch4idea.ui.editor.table.ResultTableHeaderRenderer
@@ -35,7 +38,6 @@ import org.elasticsearch4idea.utils.MyUIUtils
 import org.elasticsearch4idea.utils.TableColumnModelListenerAdapter
 import java.awt.Component
 import java.awt.Font
-import java.util.*
 import javax.swing.JTable
 import javax.swing.event.ListSelectionEvent
 import javax.swing.table.TableCellRenderer
@@ -103,7 +105,7 @@ class ResultTable internal constructor(
 
         private val objectMapper = jacksonObjectMapper()
 
-        fun createResultTable(result: String): ResultTable? {
+        fun createResultTable(result: String, mappingJson: String?): ResultTable? {
             return try {
                 val rootNode: JsonNode = objectMapper.readValue(result)
                 val hits = rootNode.get("hits") ?: return null
@@ -124,20 +126,12 @@ class ResultTable internal constructor(
                     }
                 }
                 val entries = (hits.get("hits") as ArrayNode).asIterable().asSequence()
-                    .mapIndexed { index, it -> convertHit(index, it as ObjectNode) }
+                    .map { Hit.create(it as ObjectNode) }
+                    .mapIndexed { index, hit -> ResultTableEntry(index + 1, hit) }
                     .toList()
 
-                val columns = mutableListOf<ColumnInfo<ResultTableEntry, *>>(NumbersColumnInfo())
-                entries.asSequence()
-                    .flatMap { it.values.keys.asSequence() }
-                    .distinct()
-                    .sorted()
-                    .map {
-                        ResultTableColumnInfo(
-                            it
-                        )
-                    }
-                    .forEach { columns.add(it) }
+                val mappings = Mapping.parseMappings(mappingJson!!)
+                val columns = createColumns(mappings)
 
 
                 val label = "Searched $successfulShards of $totalShards shards, $total hits, $tookString seconds."
@@ -152,92 +146,86 @@ class ResultTable internal constructor(
             }
         }
 
-        private fun convertHit(index: Int, hit: ObjectNode): ResultTableEntry {
-            val propertiesMultiMap = ArrayListMultimap.create<String, Any?>()
-            hit.fields()
-                .forEach {
-                    collectValues(
-                        it.key,
-                        it.value,
-                        propertiesMultiMap
-                    )
-                }
-            val propertiesMap = propertiesMultiMap.asMap().asSequence()
-                .map {
-                    if (it.key.startsWith("_source")) {
-                        it.key.replaceFirst("_source.", "") to it.value
-                    } else {
-                        it.key to it.value
-                    }
-                }
-                .toMap()
-            return ResultTableEntry(index + 1, propertiesMap)
-        }
-
-        private fun collectValues(key: String, jsonNode: JsonNode, values: ArrayListMultimap<String, Any?>) {
-            if (jsonNode.isValueNode) {
-                values.put(key, getValueFromNode(jsonNode))
-            } else if (jsonNode.isArray) {
-                val items = ArrayList<Any?>()
-                for (item: JsonNode in (jsonNode as ArrayNode).asIterable()) {
-                    if (item.isValueNode) {
-                        items.add(getValueFromNode(item))
-                    } else if (item.isObject) {
-                        collectValues(
-                            key,
-                            item,
-                            values
-                        )
-                    }
-                }
-                if (items.size > 2) {
-                    values.put(key, items.toString())
-                }
-            } else if (jsonNode.isObject) {
-                (jsonNode as ObjectNode).fields().forEach {
-                    collectValues(
-                        key + "." + it.key,
-                        it.value,
-                        values
-                    )
+        private fun createColumns(mappings: List<Mapping>): List<ColumnInfo<ResultTableEntry, *>> {
+            val columns = mutableListOf<ColumnInfo<ResultTableEntry, *>>()
+            columns.add(NumbersColumnInfo())
+            columns.add(ResultTableColumnInfo("_index", null, Hit::index))
+            columns.add(ResultTableColumnInfo("_type", null, Hit::type))
+            columns.add(ResultTableColumnInfo("_id", null, Hit::id))
+            columns.add(ResultTableColumnInfo("_score", null, Hit::score))
+            val columnNames = ArrayListMultimap.create<String, Pair<Mapping, MappingNode>>()
+            mappings.forEach { mapping ->
+                mapping.nodes.forEach {
+                    collectColumns(it.key, it.value, mapping, columnNames)
                 }
             }
+            columnNames.asMap().forEach { key, collection ->
+
+                columns.add(ResultTableColumnInfo(key, collection) {
+                    it.values.get(key)
+                })
+            }
+            return columns
         }
 
-        private fun getValueFromNode(jsonNode: JsonNode): Any? {
-            return when {
-                jsonNode.isNull -> {
-                    null
-                }
-                jsonNode.isBoolean -> {
-                    jsonNode.booleanValue()
-                }
-                jsonNode.isNumber -> {
-                    jsonNode.numberValue()
-                }
-                else -> {
-                    jsonNode.asText()
+        private fun collectColumns(
+            field: String,
+            node: MappingNode,
+            mapping: Mapping,
+            columns: ArrayListMultimap<String, Pair<Mapping, MappingNode>>
+        ) {
+            if (node.children.isNullOrEmpty()) {
+                columns.put(field, Pair(mapping, node))
+            } else {
+                node.children.forEach {
+                    collectColumns("$field.${it.key}", it.value, mapping, columns)
                 }
             }
         }
     }
 
-    class ResultTableColumnInfo(name: String) : ColumnInfo<ResultTableEntry, Collection<Any?>?>(name) {
+    class ResultTableColumnInfo(
+        name: String,
+        private val mappingNodes: Collection<Pair<Mapping, MappingNode>>?,
+        private val valueExtractor: (Hit) -> Any?
+    ) :
+        ColumnInfo<ResultTableEntry, Any?>(name) {
 
-        override fun valueOf(item: ResultTableEntry?): Collection<Any?>? {
-            return item?.values?.get(name)
+        override fun valueOf(item: ResultTableEntry): Any? {
+            return valueExtractor.invoke(item.hit)
         }
 
         override fun getRenderer(item: ResultTableEntry): TableCellRenderer {
             return ResultTableCellRenderer.instance
         }
 
+        override fun getTooltipText(): String? {
+            if (mappingNodes.isNullOrEmpty()) {
+                return null
+            } else {
+                val indexesByType = mappingNodes.asSequence()
+                    .filterNot { it.second.type == null }
+                    .groupBy({ it.second.type!! }, { it.first.index })
+                if (mappingNodes.size == 1 || indexesByType.size == 1) {
+                    return "<html><b>$name</b>: ${mappingNodes.first().second.type}</html>"
+                }
+                val stringBuilder = StringBuilder()
+                stringBuilder.append("<html>")
+                stringBuilder.append("<b>$name</b><br>")
+                indexesByType.forEach {
+                    val indexes = it.value.asSequence().joinToString()
+                    stringBuilder.append("($indexes): ${it.key}<br>")
+                }
+                stringBuilder.append("</html>")
+                return stringBuilder.toString()
+            }
+        }
     }
 
     class NumbersColumnInfo : ColumnInfo<ResultTableEntry, Any?>("") {
 
-        override fun valueOf(item: ResultTableEntry?): Any? {
-            return item?.number
+        override fun valueOf(item: ResultTableEntry): Any? {
+            return item.number
         }
 
         override fun getRenderer(item: ResultTableEntry): TableCellRenderer {
@@ -248,7 +236,7 @@ class ResultTable internal constructor(
 
     class ResultTableEntry(
         val number: Int,
-        val values: Map<String, Collection<Any?>>
+        val hit: Hit
     )
 
 }

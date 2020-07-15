@@ -37,7 +37,7 @@ object TaskUtils {
                 }
                 progressIndicator.isIndeterminate = false
                 (indicator as BackgroundableProcessIndicator).addStateDelegate(progressIndicator)
-                requestExecution.execute()
+                requestExecution.executeSafely()
             }
         })
     }

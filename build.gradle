@@ -31,7 +31,7 @@ dependencies {
 }
 
 intellij {
-    version '2020.1.2'
+    version '2020.1.3'
     pluginName 'elasticsearch4idea'
     updateSinceUntilBuild false
 }

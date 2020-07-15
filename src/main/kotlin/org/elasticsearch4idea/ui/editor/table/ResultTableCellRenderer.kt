@@ -20,7 +20,6 @@ import com.intellij.ui.ColoredTableCellRenderer
 import com.intellij.ui.SimpleTextAttributes
 import org.elasticsearch4idea.utils.MyUIUtils
 import javax.swing.JTable
-import javax.swing.SwingConstants
 import javax.swing.border.EmptyBorder
 
 class ResultTableCellRenderer : ColoredTableCellRenderer() {
@@ -44,31 +43,34 @@ class ResultTableCellRenderer : ColoredTableCellRenderer() {
             appendInternal("<unset>", StyleAttributesProvider.getUnsetAttributes())
             return
         }
-        val values = value as Collection<Any?>
-        if (values.size > 1) {
-            appendInternal("[", StyleAttributesProvider.getBracesAttributes())
-            values.asSequence().forEachIndexed { index, it ->
-                writeValue(it)
-                if (index != values.size - 1) {
-                    appendInternal(", ", StyleAttributesProvider.getKeywordAttributes())
+        if (value is Collection<Any?>) {
+            if (value.size > 1) {
+                appendInternal("[", StyleAttributesProvider.getBracesAttributes())
+                value.asSequence().forEachIndexed { index, it ->
+                    writeValue(it)
+                    if (index != value.size - 1) {
+                        appendInternal(", ", StyleAttributesProvider.getKeywordAttributes())
+                    }
                 }
+                appendInternal("]", StyleAttributesProvider.getBracesAttributes())
+            } else {
+                writeValue(value.firstOrNull())
             }
-            appendInternal("]", StyleAttributesProvider.getBracesAttributes())
         } else {
-            writeValue(values.firstOrNull())
+            writeValue(value)
         }
     }
 
     private fun writeValue(value: Any?) {
         when (value) {
             null -> {
-                appendInternal("null", StyleAttributesProvider.getKeywordAttributes(), SwingConstants.RIGHT)
+                appendInternal("null", StyleAttributesProvider.getKeywordAttributes())
             }
             is Number -> {
-                appendInternal(value.toString(), StyleAttributesProvider.getNumberAttributes(), SwingConstants.RIGHT)
+                appendInternal(value.toString(), StyleAttributesProvider.getNumberAttributes())
             }
             is Boolean -> {
-                appendInternal(value.toString(), StyleAttributesProvider.getKeywordAttributes(), SwingConstants.RIGHT)
+                appendInternal(value.toString(), StyleAttributesProvider.getKeywordAttributes())
             }
             else -> {
                 appendInternal(value.toString(), StyleAttributesProvider.getIdentifierAttributes())
@@ -76,9 +78,8 @@ class ResultTableCellRenderer : ColoredTableCellRenderer() {
         }
     }
 
-    private fun appendInternal(fragment: String, attributes: SimpleTextAttributes, align: Int = SwingConstants.LEFT) {
+    private fun appendInternal(fragment: String, attributes: SimpleTextAttributes) {
         foreground = attributes.fgColor
-        setTextAlign(align)
         append(fragment, attributes)
     }
 

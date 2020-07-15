@@ -33,9 +33,7 @@ import com.intellij.ui.SearchTextField
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import com.intellij.util.ui.components.BorderLayoutPanel
-import org.elasticsearch4idea.model.Method
-import org.elasticsearch4idea.model.Request
-import org.elasticsearch4idea.model.ViewMode
+import org.elasticsearch4idea.model.*
 import org.elasticsearch4idea.service.ElasticsearchConfiguration
 import org.elasticsearch4idea.service.ElasticsearchManager
 import org.elasticsearch4idea.ui.editor.ElasticsearchFile
@@ -117,11 +115,35 @@ class ElasticsearchPanel(
             val elasticsearchManager = project.service<ElasticsearchManager>()
             val url = "${elasticsearchFile.cluster.host}/${urlField.text}"
             val request = Request(url, bodyPanel.getBody(), methodCombo.selectedItem as Method)
-            elasticsearchManager.prepareExecuteRequest(request, elasticsearchFile.cluster)
+            val mappingRequestExecution = if (urlField.text.contains("_search")) {
+                val mappingUrl =
+                    "${elasticsearchFile.cluster.host}/${urlField.text.substring(0, urlField.text.indexOf("_search"))}_mapping"
+                val mappingRequest = Request(urlPath = mappingUrl, method = Method.GET)
+                elasticsearchManager.prepareExecuteRequest(mappingRequest, elasticsearchFile.cluster)
+            } else {
+                null
+            }
+            val requestExecution = elasticsearchManager.prepareExecuteRequest(request, elasticsearchFile.cluster)
+            RequestExecution(
+                execution = {
+                    val mappingFuture = mappingRequestExecution?.executeOnPooledThread()
+                    val response = requestExecution.execute()
+                    if (mappingFuture != null) {
+                        val mappingResponse = mappingFuture.get()
+                        Pair<Response, Response>(response, mappingResponse)
+                    } else {
+                        Pair(response, null)
+                    }
+                },
+                onAbort = {
+                    mappingRequestExecution?.abort()
+                    requestExecution.abort()
+                }
+            )
                 .onSuccess {
                     WriteCommandAction.runWriteCommandAction(project) {
                         UIUtil.invokeLaterIfNeeded {
-                            resultPanel.updateResult(it.content)
+                            resultPanel.updateResult(it.first.content, it.second?.content)
                         }
                     }
                 }

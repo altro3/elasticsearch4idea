@@ -65,7 +65,7 @@ class ResultPanel(
         return currentViewMode
     }
 
-    fun updateResult(result: String) {
+    fun updateResult(result: String, mapping: String?) {
         invalidate()
         removeAll()
 
@@ -75,7 +75,7 @@ class ResultPanel(
                 updateEditorText(result)
             }
             ViewMode.TABLE -> {
-                val table = ResultTable.createResultTable(result)
+                val table = ResultTable.createResultTable(result, mapping)
                 if (table == null) {
                     add(editor.component, BorderLayout.CENTER)
                     updateEditorText(result)

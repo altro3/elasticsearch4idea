@@ -97,15 +97,13 @@ class ElasticsearchManager(project: Project) : Disposable {
                 }
 
                 val clusterStatsFuture = clusterStatsRequest.executeOnPooledThread()
-                val indicesFuture = indicesRequest.executeOnPooledThread()
-
-                clusterStatsFuture.thenAcceptBoth(indicesFuture) { clusterStats, indices ->
-                    cluster.apply {
-                        clusterName = clusterStats.clusterName
-                        healthStatus = clusterStats.status
-                    }
-                    mergeIndices(cluster, indices)
-                }.get()
+                val indices = indicesRequest.execute()
+                val clusterStats = clusterStatsFuture.get()
+                cluster.apply {
+                    clusterName = clusterStats.clusterName
+                    healthStatus = clusterStats.status
+                }
+                mergeIndices(cluster, indices)
             },
             onAbort = {
                 clusterStatsRequest.abort()
@@ -189,11 +187,9 @@ class ElasticsearchManager(project: Project) : Disposable {
         return RequestExecution(
             execution = {
                 val indexShortInfoFuture = indexShortInfoRequest.executeOnPooledThread()
-                val indexInfoFuture = indexInfoRequest.executeOnPooledThread()
-                indexShortInfoFuture.thenCombine(indexInfoFuture) { indexShortInfo, indexInfo ->
-                    ElasticsearchIndexInfo(indexShortInfo, indexInfo)
-                }
-                    .get()
+                val indexInfo = indexInfoRequest.execute()
+                val indexShortInfo = indexShortInfoFuture.get()
+                ElasticsearchIndexInfo(indexShortInfo, indexInfo)
             },
             onAbort = {
                 indexShortInfoRequest.abort()
@@ -212,7 +208,7 @@ class ElasticsearchManager(project: Project) : Disposable {
             .onError(::showErrorMessage)
             .onSuccess {
                 showInfoMessage(it.content, "Index '${index.name}' deleted")
-                prepareFetchIndices(index.cluster).execute()
+                prepareFetchIndices(index.cluster).executeSafely()
             }
     }
 
@@ -239,7 +235,7 @@ class ElasticsearchManager(project: Project) : Disposable {
             .onError(::showErrorMessage)
             .onSuccess {
                 showInfoMessage(it.content, "Index '$indexName' created")
-                prepareFetchIndices(cluster).execute()
+                prepareFetchIndices(cluster).executeSafely()
             }
     }
 
@@ -311,7 +307,7 @@ class ElasticsearchManager(project: Project) : Disposable {
             .onError(::showErrorMessage)
             .onSuccess {
                 showInfoMessage(it.content, "Index '${index.name}' closed")
-                prepareFetchIndices(index.cluster).execute()
+                prepareFetchIndices(index.cluster).executeSafely()
             }
     }
 
@@ -325,7 +321,7 @@ class ElasticsearchManager(project: Project) : Disposable {
             .onError(::showErrorMessage)
             .onSuccess {
                 showInfoMessage(it.content, "Index '${index.name}' opened")
-                prepareFetchIndices(index.cluster).execute()
+                prepareFetchIndices(index.cluster).executeSafely()
             }
     }
 

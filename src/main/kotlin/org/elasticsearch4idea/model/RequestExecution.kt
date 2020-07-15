@@ -35,20 +35,7 @@ class RequestExecution<T>(
         }
     }
 
-    fun execute() {
-        try {
-            executeInternal()
-        } catch (ignore: Exception) {
-        }
-    }
-
-    fun executeOnPooledThread(): CompletableFuture<T> {
-        return CompletableFuture.supplyAsync(Supplier {
-            executeInternal()
-        }, AppExecutorUtil.getAppExecutorService())
-    }
-
-    private fun executeInternal(): T {
+    fun execute(): T {
         return try {
             val result = execution.invoke()
             onSuccessHandlers.forEach { it.invoke(result) }
@@ -59,6 +46,20 @@ class RequestExecution<T>(
             finallyHandlers.forEach { it.invoke(null, e) }
             throw e
         }
+    }
+
+    fun executeSafely(): T? {
+        return try {
+            execute()
+        } catch (ignore: Exception) {
+            null
+        }
+    }
+
+    fun executeOnPooledThread(): CompletableFuture<T> {
+        return CompletableFuture.supplyAsync(Supplier {
+            execute()
+        }, AppExecutorUtil.getAppExecutorService())
     }
 
     fun <R> map(mapper: (T) -> R): RequestExecution<R> {
@@ -84,6 +85,6 @@ class RequestExecution<T>(
     }
 
     companion object {
-        fun empty() = RequestExecution({}, {})
+        fun empty() = RequestExecution({ null }, {})
     }
 }
