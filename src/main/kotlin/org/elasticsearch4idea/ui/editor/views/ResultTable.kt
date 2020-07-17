@@ -16,11 +16,6 @@
 
 package org.elasticsearch4idea.ui.editor.views
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.node.ArrayNode
-import com.fasterxml.jackson.databind.node.ObjectNode
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import com.google.common.collect.ArrayListMultimap
 import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.openapi.editor.colors.EditorFontType
@@ -31,6 +26,7 @@ import com.intellij.util.ui.ListTableModel
 import org.elasticsearch4idea.ui.editor.model.Hit
 import org.elasticsearch4idea.ui.editor.model.Mapping
 import org.elasticsearch4idea.ui.editor.model.MappingNode
+import org.elasticsearch4idea.ui.editor.model.TableModel
 import org.elasticsearch4idea.ui.editor.table.NumberColumnCellRenderer
 import org.elasticsearch4idea.ui.editor.table.ResultTableCellRenderer
 import org.elasticsearch4idea.ui.editor.table.ResultTableHeaderRenderer
@@ -47,10 +43,8 @@ import kotlin.math.min
 
 
 class ResultTable internal constructor(
-    columns: Array<ColumnInfo<ResultTableEntry, *>>,
-    entries: List<ResultTableEntry>,
-    val label: String
-) : TableView<ResultTable.ResultTableEntry>(ListTableModel(columns, entries)) {
+    listTableModel: ListTableModel<ResultTableEntry>
+) : TableView<ResultTable.ResultTableEntry>(listTableModel) {
 
     init {
         setAutoResizeMode(JTable.AUTO_RESIZE_OFF)
@@ -101,49 +95,28 @@ class ResultTable internal constructor(
         }
     }
 
+    fun updateTable(tableModel: TableModel) {
+        val listTableModel = createListTableModel(tableModel)
+        setModelAndUpdateColumns(listTableModel)
+        adjustColumnsBySize()
+    }
+
     companion object {
 
-        private val objectMapper = jacksonObjectMapper()
+        fun createResultTable(tableModel: TableModel): ResultTable {
+            return ResultTable(createListTableModel(tableModel))
+        }
 
-        fun createResultTable(result: String, mappingJson: String?): ResultTable? {
-            return try {
-                val rootNode: JsonNode = objectMapper.readValue(result)
-                val hits = rootNode.get("hits") ?: return null
-                val totalShards = rootNode.get("_shards")?.get("total")?.asInt() ?: 0
-                val successfulShards = rootNode.get("_shards")?.get("successful")?.asInt() ?: 0
-                val took = (rootNode.get("took")?.asInt() ?: 0) / 1000f
-                val tookString = String.format("%.3f", took)
-                val totalNode = hits.get("total")
-                val total = when {
-                    totalNode.isInt -> {
-                        totalNode.asLong()
-                    }
-                    totalNode.isObject -> {
-                        totalNode.get("value").asLong()
-                    }
-                    else -> {
-                        0
-                    }
-                }
-                val entries = (hits.get("hits") as ArrayNode).asIterable().asSequence()
-                    .map { Hit.create(it as ObjectNode) }
-                    .mapIndexed { index, hit -> ResultTableEntry(index + 1, hit) }
-                    .toList()
+        private fun createListTableModel(tableModel: TableModel): ListTableModel<ResultTableEntry> {
+            val entries = createTableEntries(tableModel.hits)
+            val columns = createColumns(tableModel.mappings, entries)
+            return ListTableModel(columns.toTypedArray(), entries)
+        }
 
-                val mappings = Mapping.parseMappings(mappingJson!!)
-                val columns = createColumns(mappings, entries)
-
-
-                val label = "Searched $successfulShards of $totalShards shards, $total hits, $tookString seconds."
-
-                ResultTable(
-                    columns.toTypedArray(),
-                    entries,
-                    label
-                )
-            } catch (e: Exception) {
-                null
-            }
+        private fun createTableEntries(hits: List<Hit>): List<ResultTableEntry> {
+            return hits.asIterable().asSequence()
+                .mapIndexed { index, hit -> ResultTableEntry(index + 1, hit) }
+                .toList()
         }
 
         private fun createColumns(
@@ -206,7 +179,7 @@ class ResultTable internal constructor(
 
         override fun getTooltipText(): String? {
             if (mappingNodes.isNullOrEmpty()) {
-                return null
+                return "<html><b>$name</b></html>"
             } else {
                 val indexesByType = mappingNodes.asSequence()
                     .filterNot { it.second.type == null }
