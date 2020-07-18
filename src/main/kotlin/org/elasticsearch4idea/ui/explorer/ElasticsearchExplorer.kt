@@ -73,14 +73,13 @@ class ElasticsearchExplorer(
     private val elasticsearchManager = project.service<ElasticsearchManager>()
 
     init {
-        toolbar = createToolbarPanel()
-
         table = ElasticsearchInfosTable()
         val infosPanel = JPanel(BorderLayout())
         infosPanel.add(ScrollPaneFactory.createScrollPane(table))
 
         val treePanel = JPanel(BorderLayout())
         tree = createTree()
+        toolbar = createToolbarPanel()
         createTreePopupActions()
 
         treePanel.add(ScrollPaneFactory.createScrollPane(tree))
@@ -103,7 +102,7 @@ class ElasticsearchExplorer(
         tree.isRootVisible = false
         tree.showsRootHandles = true
         tree.cellRenderer = NodeRenderer()
-        tree.emptyText.clear()
+        tree.emptyText.text = "Add Elasticsearch cluster"
         tree.selectionModel.selectionMode = TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION
         tree.putClientProperty(AnimatedIcon.ANIMATION_IN_RENDERER_ALLOWED, true)
 
@@ -169,7 +168,9 @@ class ElasticsearchExplorer(
                         }
                     }
             }
+            return
         }
+        table.updateInfos(emptyList())
     }
 
     private fun createTreePopupActions() {
