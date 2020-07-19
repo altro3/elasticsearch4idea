@@ -1,6 +1,10 @@
 Change Log
 ----------
 
+## Version 0.1.8
+- Fix inability to select file in SSL dialog
+
+
 ## Version 0.1.7
 - Rename plugin to 'Elasticsearch'
 
