@@ -124,28 +124,29 @@ class ElasticsearchManager(project: Project) : Disposable {
     }
 
     private fun mergeIndices(cluster: ElasticsearchCluster, indices: List<Index>) {
-        val indexesByName = indices.associateBy { it.name }
-        cluster.indices.removeIf { !indexesByName.containsKey(it.name) }
-        val oldIndexesByName = cluster.indices.associateBy { it.name }
-        indices.forEach {
-            val index = if (oldIndexesByName.containsKey(it.name)) {
-                oldIndexesByName[it.name]!!
-            } else {
-                val index = ElasticsearchIndex(it.name)
-                cluster.addIndex(index)
-                index
-            }
-            index.apply {
-                healthStatus = it.health
-                status = it.status
-                this.cluster = cluster
+        synchronized(cluster) {
+            val indexesByName = indices.associateBy { it.name }
+            cluster.indices.removeIf { !indexesByName.containsKey(it.name) }
+            val oldIndexesByName = cluster.indices.associateBy { it.name }
+            indices.forEach {
+                val index = if (oldIndexesByName.containsKey(it.name)) {
+                    oldIndexesByName[it.name]!!
+                } else {
+                    val index = ElasticsearchIndex(it.name)
+                    cluster.addIndex(index)
+                    index
+                }
+                index.apply {
+                    healthStatus = it.health
+                    status = it.status
+                    this.cluster = cluster
+                }
             }
         }
     }
 
     private fun createOrUpdateCluster(configuration: ClusterConfiguration): ElasticsearchCluster {
         clients.remove(configuration.label)?.close()
-        clients.put(configuration.label, ElasticsearchClient(configuration))
         return clusters.getOrPut(configuration.label) { ElasticsearchCluster(configuration.label) }
             .apply { host = configuration.url }
     }
@@ -345,7 +346,11 @@ class ElasticsearchManager(project: Project) : Disposable {
         return getClient(cluster.label)
     }
 
+    @Synchronized
     private fun getClient(label: String): ElasticsearchClient {
+        if (!clients.contains(label)) {
+            clients.put(label, ElasticsearchClient(elasticsearchConfiguration.getConfiguration(label)!!))
+        }
         return clients[label]!!
     }
 
