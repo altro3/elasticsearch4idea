@@ -132,7 +132,7 @@ class ClusterConfigurationDialog(
     private fun createSSLPanel() = panel {
         row("Truststore:") {
             textFieldWithBrowseButton(PropertyBinding({ trustStorePath }, { trustStorePath = it }),
-                fileChooserDescriptor = FileChooserDescriptorFactory.createSingleFileDescriptor(".p12")
+                fileChooserDescriptor = FileChooserDescriptorFactory.createSingleFileDescriptor()
                     .also { it.putUserData(PathChooserDialog.PREFER_LAST_OVER_EXPLICIT, false) }
             )
         }
@@ -142,7 +142,7 @@ class ClusterConfigurationDialog(
         }
         row("Keystore:") {
             textFieldWithBrowseButton(PropertyBinding({ keyStorePath }, { keyStorePath = it }),
-                fileChooserDescriptor = FileChooserDescriptorFactory.createSingleFileDescriptor(".p12")
+                fileChooserDescriptor = FileChooserDescriptorFactory.createSingleFileDescriptor()
                     .also { it.putUserData(PathChooserDialog.PREFER_LAST_OVER_EXPLICIT, false) }
             )
         }
