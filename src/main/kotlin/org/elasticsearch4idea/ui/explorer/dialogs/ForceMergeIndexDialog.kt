@@ -17,10 +17,10 @@ package org.elasticsearch4idea.ui.explorer.dialogs
 
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.ValidationInfo
-import com.intellij.ui.components.JBTextField
 import com.intellij.ui.layout.ValidationInfoBuilder
 import com.intellij.ui.layout.panel
 import org.elasticsearch4idea.ui.explorer.ElasticsearchExplorer
+import javax.swing.JTextField
 
 
 class ForceMergeIndexDialog(parent: ElasticsearchExplorer) : DialogWrapper(parent, true) {
@@ -49,7 +49,7 @@ class ForceMergeIndexDialog(parent: ElasticsearchExplorer) : DialogWrapper(paren
         }
     }
 
-    private fun validateMaxNumSegments(): ValidationInfoBuilder.(JBTextField) -> ValidationInfo? {
+    private fun validateMaxNumSegments(): ValidationInfoBuilder.(JTextField) -> ValidationInfo? {
         return {
             val number = it.text.toIntOrNull()
             if (number == null || number <= 0) {

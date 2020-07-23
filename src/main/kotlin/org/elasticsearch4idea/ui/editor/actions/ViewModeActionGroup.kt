@@ -37,7 +37,7 @@ class ViewModeActionGroup(private val elasticsearchPanel: ElasticsearchPanel) : 
         private val option: ViewMode
     ) : ToggleOptionAction.Option {
 
-        override fun getName(): String? {
+        override fun getName(): String {
             return option.text
         }
 

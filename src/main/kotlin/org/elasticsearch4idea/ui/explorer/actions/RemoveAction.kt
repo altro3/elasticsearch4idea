@@ -27,13 +27,7 @@ import org.elasticsearch4idea.utils.TaskUtils
 class RemoveAction(
     private val elasticsearchExplorer: ElasticsearchExplorer
 ) :
-    DumbAwareAction({
-        if (elasticsearchExplorer.getSelectedCluster() != null) {
-            "Remove..."
-        } else {
-            "Delete..."
-        }
-    }, { "Remove selected item" }, null) {
+    DumbAwareAction("Delete...", "Remove selected item", null) {
 
     init {
         registerCustomShortcutSet(CommonShortcuts.getDelete(), elasticsearchExplorer)

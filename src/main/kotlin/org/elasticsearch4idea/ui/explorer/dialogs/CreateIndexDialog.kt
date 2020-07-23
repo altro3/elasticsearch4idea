@@ -17,11 +17,11 @@ package org.elasticsearch4idea.ui.explorer.dialogs
 
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.ValidationInfo
-import com.intellij.ui.components.JBTextField
 import com.intellij.ui.layout.ValidationInfoBuilder
 import com.intellij.ui.layout.panel
 import org.elasticsearch4idea.ui.explorer.ElasticsearchExplorer
 import org.elasticsearch4idea.utils.isNotLowercase
+import javax.swing.JTextField
 
 
 class CreateIndexDialog(parent: ElasticsearchExplorer) : DialogWrapper(parent, true) {
@@ -53,7 +53,7 @@ class CreateIndexDialog(parent: ElasticsearchExplorer) : DialogWrapper(parent, t
         }
     }
 
-    private fun validateIndexName(): ValidationInfoBuilder.(JBTextField) -> ValidationInfo? {
+    private fun validateIndexName(): ValidationInfoBuilder.(JTextField) -> ValidationInfo? {
         return {
             when {
                 it.text.isNullOrBlank() -> this.error("Index name must be set")
@@ -69,7 +69,7 @@ class CreateIndexDialog(parent: ElasticsearchExplorer) : DialogWrapper(parent, t
         }
     }
 
-    private fun validateNumberOfShards(): ValidationInfoBuilder.(JBTextField) -> ValidationInfo? {
+    private fun validateNumberOfShards(): ValidationInfoBuilder.(JTextField) -> ValidationInfo? {
         return {
             val number = it.text.toIntOrNull()
             if (number == null || number <= 0) {
@@ -80,7 +80,7 @@ class CreateIndexDialog(parent: ElasticsearchExplorer) : DialogWrapper(parent, t
         }
     }
 
-    private fun validateNumberOfReplicas(): ValidationInfoBuilder.(JBTextField) -> ValidationInfo? {
+    private fun validateNumberOfReplicas(): ValidationInfoBuilder.(JTextField) -> ValidationInfo? {
         return {
             val number = it.text.toIntOrNull()
             if (number == null || number < 0) {

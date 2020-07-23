@@ -15,7 +15,7 @@
   -->
 
 <idea-plugin>
-    <idea-version since-build="201.0"/>
+    <idea-version since-build="193" until-build="193.*"/>
     <id>org.elasticsearch4idea</id>
     <name>Elasticsearch</name>
     <vendor email="anton.shuvaev91@gmail.com">Anton Shuvaev</vendor>
