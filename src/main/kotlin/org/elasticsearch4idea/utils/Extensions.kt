@@ -16,10 +16,19 @@
 
 package org.elasticsearch4idea.utils
 
+import com.intellij.ui.components.JBTabbedPane
+import com.intellij.ui.layout.CCFlags
+import com.intellij.ui.layout.Cell
+import com.intellij.ui.layout.CellBuilder
+
 fun String.isLowercase(): Boolean {
     return this.asSequence().all { !it.isLetter() || it.isLowerCase() }
 }
 
 fun String.isNotLowercase(): Boolean {
     return !isLowercase()
+}
+
+fun Cell.addTabbedPane(tabbedPane: JBTabbedPane, vararg constraints: CCFlags): CellBuilder<JBTabbedPane> {
+    return (tabbedPane)(*constraints)
 }

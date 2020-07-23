@@ -28,18 +28,17 @@ import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.components.JBTextField
-import com.intellij.ui.layout.PropertyBinding
-import com.intellij.ui.layout.ValidationInfoBuilder
-import com.intellij.ui.layout.panel
-import com.intellij.ui.layout.withTextBinding
+import com.intellij.ui.layout.*
 import icons.Icons
 import org.elasticsearch4idea.model.ClusterConfiguration
 import org.elasticsearch4idea.service.ElasticsearchConfiguration
 import org.elasticsearch4idea.service.ElasticsearchManager
 import org.elasticsearch4idea.ui.explorer.ElasticsearchExplorer
+import org.elasticsearch4idea.utils.addTabbedPane
 import java.awt.Dimension
 import java.awt.event.ActionEvent
 import javax.swing.JPasswordField
+import javax.swing.JTextField
 
 class ClusterConfigurationDialog(
     parent: ElasticsearchExplorer,
@@ -89,20 +88,22 @@ class ClusterConfigurationDialog(
 
     private fun createDialogPanel() = panel {
         row {
-            component(tabbedPane)
+            addTabbedPane(tabbedPane, CCFlags.grow)
                 .withValidationOnApply {
                     validateTabs()
                 }
+                .onApply {
+                    generalPanel.apply()
+                    sslPanel.apply()
+                }
         }
         row {
-            button("Test Connection", ::testConnection)
+            button("Test Connection", CCFlags.push) {
+                testConnection(it)
+            }
         }
         row {
             feedbackLabel()
-        }
-        onGlobalApply {
-            generalPanel.apply()
-            sslPanel.apply()
         }
     }
 
@@ -212,7 +213,7 @@ class ClusterConfigurationDialog(
         feedbackLabel.text = message
     }
 
-    private fun validateName(): ValidationInfoBuilder.(JBTextField) -> ValidationInfo? {
+    private fun validateName(): ValidationInfoBuilder.(JTextField) -> ValidationInfo? {
         return {
             val name = it.text
             if (name.isNullOrBlank()) {

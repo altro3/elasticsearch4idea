@@ -17,10 +17,10 @@ package org.elasticsearch4idea.ui.explorer.dialogs
 
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.ValidationInfo
-import com.intellij.ui.components.JBTextField
 import com.intellij.ui.layout.ValidationInfoBuilder
 import com.intellij.ui.layout.panel
 import org.elasticsearch4idea.ui.explorer.ElasticsearchExplorer
+import javax.swing.JTextField
 
 
 class CreateAliasDialog(parent: ElasticsearchExplorer) : DialogWrapper(parent, true) {
@@ -41,7 +41,7 @@ class CreateAliasDialog(parent: ElasticsearchExplorer) : DialogWrapper(parent, t
         }
     }
 
-    private fun validateAlias(): ValidationInfoBuilder.(JBTextField) -> ValidationInfo? {
+    private fun validateAlias(): ValidationInfoBuilder.(JTextField) -> ValidationInfo? {
         return {
             if (it.text.isNullOrBlank()) this.error("Alias name must be set")
             else null
