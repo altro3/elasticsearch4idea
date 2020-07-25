@@ -23,6 +23,7 @@ Change Log
 
 ## Version 0.1.9
 - \#5 Fix incorrect displaying Chinese symbols in table view
+- Encode request body with UTF-8 instead of ISO 8859-1
 
 ## Version 0.1.8
 - Fix inability to select file in SSL dialog
