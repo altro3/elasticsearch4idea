@@ -20,6 +20,8 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.MapperFeature
 import com.fasterxml.jackson.databind.PropertyNamingStrategy
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.intellij.openapi.util.text.StringUtil
+import com.intellij.util.LineSeparator
 import org.apache.http.Header
 import org.apache.http.HttpHeaders
 import org.apache.http.HttpHost
@@ -141,6 +143,7 @@ class ElasticsearchClient(clusterConfiguration: ClusterConfiguration) : Closeabl
                 val content = response.entity.content.use {
                     it.bufferedReader().use(BufferedReader::readText)
                 }
+                    .let { StringUtil.convertLineSeparators(it, LineSeparator.LF.separatorString) }
                 Response(content, response.statusLine)
             }
         )
