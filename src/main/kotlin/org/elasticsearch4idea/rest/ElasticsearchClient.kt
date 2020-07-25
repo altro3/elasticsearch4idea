@@ -41,6 +41,7 @@ import org.elasticsearch4idea.utils.SSLUtils
 import java.io.BufferedReader
 import java.io.Closeable
 import java.io.InputStream
+import java.nio.charset.StandardCharsets
 
 class ElasticsearchClient(clusterConfiguration: ClusterConfiguration) : Closeable {
     private val httpHost: HttpHost = clusterConfiguration.getHttpHost()
@@ -119,13 +120,13 @@ class ElasticsearchClient(clusterConfiguration: ClusterConfiguration) : Closeabl
             Method.POST -> {
                 val post = HttpPost(request.urlPath)
                 post.setHeader(HttpHeaders.CONTENT_TYPE, "application/json")
-                post.entity = StringEntity(request.body)
+                post.entity = StringEntity(request.body, StandardCharsets.UTF_8)
                 post
             }
             Method.PUT -> {
                 val put = HttpPut(request.urlPath)
                 put.setHeader(HttpHeaders.CONTENT_TYPE, "application/json")
-                put.entity = StringEntity(request.body)
+                put.entity = StringEntity(request.body, StandardCharsets.UTF_8)
                 put
             }
             Method.HEAD -> HttpHead(request.urlPath)
