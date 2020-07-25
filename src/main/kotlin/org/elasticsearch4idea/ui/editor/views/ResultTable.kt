@@ -198,6 +198,9 @@ class ResultTable internal constructor(
             return item?.values?.get(name)?.joinToString(", ")
         }
 
+        override fun getRenderer(item: ResultTableEntry?): TableCellRenderer? {
+            return ResultTableCellRenderer.instance
+        }
     }
 
     class ResultTableEntry(val values: Map<String, Collection<String>>)
