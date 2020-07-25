@@ -1,6 +1,9 @@
 Change Log
 ----------
 
+## Version 0.1.9
+- \#5 Fix incorrect displaying Chinese symbols in table view
+
 ## Version 0.1.8
 - Fix inability to select file in SSL dialog
 
