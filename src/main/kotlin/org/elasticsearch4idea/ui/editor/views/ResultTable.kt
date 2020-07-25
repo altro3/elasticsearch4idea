@@ -218,6 +218,9 @@ class ResultTable internal constructor(
             return NumberColumnCellRenderer.instance
         }
 
+        override fun getRenderer(item: ResultTableEntry?): TableCellRenderer? {
+            return ResultTableCellRenderer.instance
+        }
     }
 
     class ResultTableEntry(
