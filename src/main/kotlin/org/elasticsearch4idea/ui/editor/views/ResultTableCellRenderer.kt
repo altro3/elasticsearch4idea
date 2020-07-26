@@ -14,36 +14,27 @@
  * limitations under the License.
  */
 
-plugins {
-    id 'org.jetbrains.intellij' version '0.4.21'
-    id 'org.jetbrains.kotlin.jvm' version '1.3.72'
-}
+package org.elasticsearch4idea.ui.editor.views
 
-group 'org.elasticsearch4idea'
-version '0.1.9'
+import com.intellij.ui.ColoredTableCellRenderer
+import javax.swing.JTable
 
-repositories {
-    mavenCentral()
-}
+class ResultTableCellRenderer : ColoredTableCellRenderer() {
 
-dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
-}
+    override fun customizeCellRenderer(
+        table: JTable?,
+        value: Any?,
+        selected: Boolean,
+        hasFocus: Boolean,
+        row: Int,
+        column: Int
+    ) {
+        if (value != null) {
+            append(value.toString())
+        }
+    }
 
-intellij {
-    version '2020.1.3'
-    pluginName 'elasticsearch4idea'
-    updateSinceUntilBuild false
-}
-compileKotlin {
-    kotlinOptions.jvmTarget = "1.8"
-}
-compileTestKotlin {
-    kotlinOptions.jvmTarget = "1.8"
-}
-patchPluginXml {
-}
-
-runIde {
-    systemProperty('idea.auto.reload.plugins', false)
+    companion object {
+        val instance = ResultTableCellRenderer()
+    }
 }
