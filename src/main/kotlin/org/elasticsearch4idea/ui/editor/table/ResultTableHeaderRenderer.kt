@@ -16,6 +16,7 @@
 
 package org.elasticsearch4idea.ui.editor.table
 
+import com.intellij.ui.JBColor
 import com.intellij.util.ui.JBUI
 import org.elasticsearch4idea.utils.MyUIUtils
 import sun.swing.table.DefaultTableCellHeaderRenderer
@@ -38,8 +39,9 @@ class ResultTableHeaderRenderer : DefaultTableCellHeaderRenderer() {
         if (cmp !is JLabel) return cmp
         cmp.horizontalAlignment = SwingConstants.LEFT
         var border = cmp.border
-        val indent = JBUI.Borders.emptyLeft(8)
+        val indent = JBUI.Borders.empty(0, 8,  0, 0);
         border = JBUI.Borders.merge(border, indent, true)
+        border = JBUI.Borders.merge(border, JBUI.Borders.customLine(JBColor.border(), 1, 0, 1, 1), true)
         cmp.border = border
         if (table?.isColumnSelected(column) == true) {
             cmp.background = MyUIUtils.getSelectedLineColor()

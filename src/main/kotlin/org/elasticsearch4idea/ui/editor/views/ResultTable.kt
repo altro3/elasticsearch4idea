@@ -19,6 +19,7 @@ package org.elasticsearch4idea.ui.editor.views
 import com.google.common.collect.ArrayListMultimap
 import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.openapi.editor.colors.EditorFontType
+import com.intellij.ui.JBColor
 import com.intellij.ui.table.TableView
 import com.intellij.util.ui.ColumnInfo
 import com.intellij.util.ui.JBUI
@@ -34,6 +35,8 @@ import org.elasticsearch4idea.utils.MyUIUtils
 import org.elasticsearch4idea.utils.TableColumnModelListenerAdapter
 import java.awt.Component
 import java.awt.Font
+import java.awt.event.FocusAdapter
+import java.awt.event.FocusEvent
 import javax.swing.JTable
 import javax.swing.event.ListSelectionEvent
 import javax.swing.table.TableCellRenderer
@@ -57,8 +60,8 @@ class ResultTable internal constructor(
         getTableHeader().font = font
         getTableHeader().background = MyUIUtils.getResultTableHeaderColor()
         getTableHeader().foreground = colorsScheme.defaultForeground
-        getTableHeader().border = JBUI.Borders.customLine(MyUIUtils.getResultTableGridColor(), 1)
-        gridColor = MyUIUtils.getResultTableGridColor()
+        getTableHeader().border = JBUI.Borders.customLine(JBColor.border(), 1, 0, 0, 0)
+        gridColor = MyUIUtils.getTableGridColor()
         selectionForeground = null
         columnModel.addColumnModelListener(object : TableColumnModelListenerAdapter() {
 
@@ -68,6 +71,11 @@ class ResultTable internal constructor(
                 }
                 getTableHeader().repaint(getTableHeader().getHeaderRect(e.firstIndex))
                 getTableHeader().repaint(getTableHeader().getHeaderRect(e.lastIndex))
+            }
+        })
+        addFocusListener(object : FocusAdapter() {
+            override fun focusLost(e: FocusEvent) {
+                clearSelection()
             }
         })
         adjustColumnsBySize()

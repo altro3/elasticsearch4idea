@@ -31,13 +31,12 @@ object MyUIUtils {
         }
     }
 
-    fun getResultTableGridColor(): Color {
-        val color = EditorColorsManager.getInstance().globalScheme.defaultBackground
-        return if (EditorColorsManager.getInstance().isDarkEditor) {
-            Color(color.red + 12, color.green + 12, color.blue + 12)
-        } else {
-            Color(color.red - 12, color.green - 12, color.blue - 12)
+    fun getTableGridColor(): Color {
+        val color = EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.INDENT_GUIDE_COLOR)
+        if (color != null) {
+            return color
         }
+        return getPropertiesTableHeaderColor();
     }
 
     fun getPropertiesTableHeaderColor(): Color {
@@ -49,8 +48,7 @@ object MyUIUtils {
     }
 
     fun getBottomPanelBackgroundColor(): Color {
-        return EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.GUTTER_BACKGROUND)
-            ?: getPropertiesTableHeaderColor()
+        return EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.GUTTER_BACKGROUND)!!
     }
 
     fun getSelectedLineColor(): Color {
