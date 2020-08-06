@@ -26,7 +26,7 @@ import com.intellij.util.ui.ListTableModel
 import org.elasticsearch4idea.ui.editor.model.Hit
 import org.elasticsearch4idea.ui.editor.model.Mapping
 import org.elasticsearch4idea.ui.editor.model.MappingNode
-import org.elasticsearch4idea.ui.editor.model.TableModel
+import org.elasticsearch4idea.ui.editor.model.ResultModel
 import org.elasticsearch4idea.ui.editor.table.NumberColumnCellRenderer
 import org.elasticsearch4idea.ui.editor.table.ResultTableCellRenderer
 import org.elasticsearch4idea.ui.editor.table.ResultTableHeaderRenderer
@@ -95,27 +95,27 @@ class ResultTable internal constructor(
         }
     }
 
-    fun updateTable(tableModel: TableModel) {
-        val listTableModel = createListTableModel(tableModel)
+    fun updateTable(resultModel: ResultModel) {
+        val listTableModel = createListTableModel(resultModel)
         setModelAndUpdateColumns(listTableModel)
         adjustColumnsBySize()
     }
 
     companion object {
 
-        fun createResultTable(tableModel: TableModel): ResultTable {
-            return ResultTable(createListTableModel(tableModel))
+        fun createResultTable(resultModel: ResultModel): ResultTable {
+            return ResultTable(createListTableModel(resultModel))
         }
 
-        private fun createListTableModel(tableModel: TableModel): ListTableModel<ResultTableEntry> {
-            val entries = createTableEntries(tableModel.hits)
-            val columns = createColumns(tableModel.mappings, entries)
+        private fun createListTableModel(resultModel: ResultModel): ListTableModel<ResultTableEntry> {
+            val entries = createTableEntries(resultModel)
+            val columns = createColumns(resultModel.mappings, entries)
             return ListTableModel(columns.toTypedArray(), entries)
         }
 
-        private fun createTableEntries(hits: List<Hit>): List<ResultTableEntry> {
-            return hits.asIterable().asSequence()
-                .mapIndexed { index, hit -> ResultTableEntry(index + 1, hit) }
+        private fun createTableEntries(resultModel: ResultModel): List<ResultTableEntry> {
+            return resultModel.hits.asIterable().asSequence()
+                .mapIndexed { index, hit -> ResultTableEntry(index + resultModel.from + 1, hit) }
                 .toList()
         }
 
@@ -166,8 +166,7 @@ class ResultTable internal constructor(
         name: String,
         private val mappingNodes: Collection<Pair<Mapping, MappingNode>>?,
         private val valueExtractor: (Hit) -> Any?
-    ) :
-        ColumnInfo<ResultTableEntry, Any?>(name) {
+    ) : ColumnInfo<ResultTableEntry, Any?>(name) {
 
         override fun valueOf(item: ResultTableEntry): Any? {
             return valueExtractor.invoke(item.hit)
@@ -210,13 +209,10 @@ class ResultTable internal constructor(
             return NumberColumnCellRenderer.instance
         }
 
-        override fun getRenderer(item: ResultTableEntry?): TableCellRenderer? {
-            return ResultTableCellRenderer.instance
-        }
     }
 
     class ResultTableEntry(
-        val number: Int,
+        val number: Long,
         val hit: Hit
     )
 

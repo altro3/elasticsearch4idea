@@ -14,27 +14,12 @@
  * limitations under the License.
  */
 
-package org.elasticsearch4idea.ui.editor.views
+package org.elasticsearch4idea.ui.editor.model
 
-import com.intellij.ui.ColoredTableCellRenderer
-import javax.swing.JTable
-
-class ResultTableCellRenderer : ColoredTableCellRenderer() {
-
-    override fun customizeCellRenderer(
-        table: JTable?,
-        value: Any?,
-        selected: Boolean,
-        hasFocus: Boolean,
-        row: Int,
-        column: Int
-    ) {
-        if (value != null) {
-            append(value.toString())
-        }
-    }
-
-    companion object {
-        val instance = ResultTableCellRenderer()
-    }
-}
+class ResultModel(
+    val hits: List<Hit>,
+    val mappings: List<Mapping>,
+    val total: Long,
+    val from: Long,
+    val size: Long
+)

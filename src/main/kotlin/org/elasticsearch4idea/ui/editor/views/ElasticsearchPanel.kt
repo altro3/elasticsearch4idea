@@ -25,7 +25,6 @@ import com.intellij.openapi.keymap.KeymapUtil
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
-import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.Splitter
 import com.intellij.ui.EnumComboBoxModel
 import com.intellij.ui.JBColor
@@ -33,13 +32,14 @@ import com.intellij.ui.SearchTextField
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import com.intellij.util.ui.components.BorderLayoutPanel
-import org.elasticsearch4idea.model.*
+import org.elasticsearch4idea.model.Method
+import org.elasticsearch4idea.model.Request
+import org.elasticsearch4idea.model.ViewMode
 import org.elasticsearch4idea.service.ElasticsearchConfiguration
-import org.elasticsearch4idea.service.ElasticsearchManager
 import org.elasticsearch4idea.ui.editor.ElasticsearchFile
+import org.elasticsearch4idea.ui.editor.QueryManager
 import org.elasticsearch4idea.ui.editor.actions.ExecuteQueryAction
 import org.elasticsearch4idea.ui.editor.actions.ViewAsActionGroup
-import org.elasticsearch4idea.utils.TaskUtils
 import java.awt.BorderLayout
 import java.awt.Dimension
 import javax.swing.JPanel
@@ -51,6 +51,7 @@ class ElasticsearchPanel(
 
     private val bodyPanel: BodyPanel
     private val resultPanel: ResultPanel
+    private val queryManager: QueryManager
 
     private val methodCombo = ComboBox(EnumComboBoxModel(Method::class.java), 85)
         .also { it.preferredSize = Dimension(it.width, 28) }
@@ -60,17 +61,31 @@ class ElasticsearchPanel(
     init {
         layout = BorderLayout()
         bodyPanel = BodyPanel(project)
-        resultPanel = ResultPanel(project, elasticsearchConfiguration.viewMode)
-
+        resultPanel = ResultPanel(project, this, elasticsearchConfiguration.viewMode)
+        queryManager = QueryManager(project, elasticsearchFile.cluster, this::getRequest)
+        queryManager.addResponseListener {
+            WriteCommandAction.runWriteCommandAction(project) {
+                UIUtil.invokeLaterIfNeeded {
+                    updateFromRequest(it.request)
+                    resultPanel.updateResult(it)
+                }
+            }
+        }
+        resultPanel.setQueryManager(queryManager)
         initUrlComponent()
         val toolbar = createToolbarPanel()
         add(toolbar, BorderLayout.NORTH)
 
         bodyPanel.updateQueryView(elasticsearchFile.request.body)
         methodCombo.selectedItem = elasticsearchFile.request.method
-        urlField.text = elasticsearchFile.request.urlPath
+        urlField.text = elasticsearchFile.request.path
 
-        val splitter = Splitter(true, 0.2f)
+        methodCombo.addItemListener {
+            val selectedMethod = it.item as Method
+            bodyPanel.isVisible = selectedMethod == Method.POST || selectedMethod == Method.PUT
+        }
+
+        val splitter = Splitter(true, 0.3f)
         splitter.divider.background = UIUtil.SIDE_PANEL_BACKGROUND
         splitter.firstComponent = bodyPanel
         splitter.secondComponent = resultPanel
@@ -94,7 +109,7 @@ class ElasticsearchPanel(
 
     private fun createToolbarPanel(): JPanel {
         val group = DefaultActionGroup()
-        group.add(ExecuteQueryAction(this))
+        group.add(ExecuteQueryAction(queryManager, this))
         group.add(ViewAsActionGroup(this, project))
         val actionToolBar = ActionManager.getInstance()
             .createActionToolbar("ElasticsearchQueryToolBar", group, true) as ActionToolbarImpl
@@ -110,53 +125,16 @@ class ElasticsearchPanel(
         return panel
     }
 
-    fun executeQuery() {
-        TaskUtils.runBackgroundTask("Executing request...") {
-            val elasticsearchManager = project.service<ElasticsearchManager>()
-            val url = "${elasticsearchFile.cluster.host}/${urlField.text}"
-            val request = Request(url, bodyPanel.getBody(), methodCombo.selectedItem as Method)
-            val mappingRequestExecution = if (urlField.text.contains("_search")) {
-                val mappingUrl =
-                    "${elasticsearchFile.cluster.host}/${urlField.text.substring(0, urlField.text.indexOf("_search"))}_mapping"
-                val mappingRequest = Request(urlPath = mappingUrl, method = Method.GET)
-                elasticsearchManager.prepareExecuteRequest(mappingRequest, elasticsearchFile.cluster)
-            } else {
-                null
-            }
-            val requestExecution = elasticsearchManager.prepareExecuteRequest(request, elasticsearchFile.cluster)
-            RequestExecution(
-                execution = {
-                    val mappingFuture = mappingRequestExecution?.executeOnPooledThread()
-                    val response = requestExecution.execute()
-                    if (mappingFuture != null) {
-                        val mappingResponse = mappingFuture.get()
-                        Pair<Response, Response>(response, mappingResponse)
-                    } else {
-                        Pair(response, null)
-                    }
-                },
-                onAbort = {
-                    mappingRequestExecution?.abort()
-                    requestExecution.abort()
-                }
-            )
-                .onSuccess {
-                    WriteCommandAction.runWriteCommandAction(project) {
-                        UIUtil.invokeLaterIfNeeded {
-                            resultPanel.updateResult(it.first.content, it.second?.content)
-                        }
-                    }
-                }
-                .onError {
-                    UIUtil.invokeLaterIfNeeded {
-                        Messages.showErrorDialog(it.message, "Error")
-                    }
-                }
-        }
+    fun getUrl(): String {
+        return urlField.text
+    }
+
+    private fun getMethod(): Method {
+        return methodCombo.selectedItem as Method
     }
 
     fun showResults() {
-        executeQuery()
+        queryManager.executeRequest()
     }
 
     fun getResultPanel(): ResultPanel {
@@ -173,7 +151,27 @@ class ElasticsearchPanel(
             return
         }
         resultPanel.setCurrentViewMode(viewMode)
-        executeQuery()
+        queryManager.executeRequest()
+    }
+
+    private fun updateFromRequest(request: Request) {
+        urlField.text = request.path
+        methodCombo.selectedItem = request.method
+        bodyPanel.updateQueryView(request.body)
+    }
+
+    private fun getRequest(): Request {
+        val body = if (getMethod() == Method.POST || getMethod() == Method.PUT) {
+            bodyPanel.getBody()
+        } else {
+            ""
+        }
+        return Request(
+            host = elasticsearchFile.cluster.host,
+            path = urlField.text,
+            body = body,
+            method = getMethod()
+        )
     }
 
     internal class UrlField : SearchTextField() {

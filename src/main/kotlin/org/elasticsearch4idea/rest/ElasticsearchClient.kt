@@ -116,21 +116,21 @@ class ElasticsearchClient(clusterConfiguration: ClusterConfiguration) : Closeabl
 
     fun prepareExecution(request: Request, checkResponseSuccess: Boolean = true): RequestExecution<Response> {
         val httpRequest = when (request.method) {
-            Method.GET -> HttpGet(request.urlPath)
+            Method.GET -> HttpGet(request.getUrl())
             Method.POST -> {
-                val post = HttpPost(request.urlPath)
+                val post = HttpPost(request.getUrl())
                 post.setHeader(HttpHeaders.CONTENT_TYPE, "application/json")
                 post.entity = StringEntity(request.body, StandardCharsets.UTF_8)
                 post
             }
             Method.PUT -> {
-                val put = HttpPut(request.urlPath)
+                val put = HttpPut(request.getUrl())
                 put.setHeader(HttpHeaders.CONTENT_TYPE, "application/json")
                 put.entity = StringEntity(request.body, StandardCharsets.UTF_8)
                 put
             }
-            Method.HEAD -> HttpHead(request.urlPath)
-            Method.DELETE -> HttpDelete(request.urlPath)
+            Method.HEAD -> HttpHead(request.getUrl())
+            Method.DELETE -> HttpDelete(request.getUrl())
         }
         return prepareExecution(
             httpRequest,

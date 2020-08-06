@@ -202,7 +202,8 @@ class ElasticsearchManager(project: Project) : Disposable {
     fun prepareDeleteIndex(index: ElasticsearchIndex): RequestExecution<*> {
         return getClient(index).prepareExecution(
             Request(
-                urlPath = "${index.cluster.host}/${index.name}",
+                host = index.cluster.host,
+                path = index.name,
                 method = Method.DELETE
             )
         )
@@ -221,7 +222,8 @@ class ElasticsearchManager(project: Project) : Disposable {
     ): RequestExecution<*> {
         return getClient(cluster).prepareExecution(
             Request(
-                urlPath = "${cluster.host}/$indexName",
+                host = cluster.host,
+                path = indexName,
                 method = Method.PUT,
                 body = """{
         "settings" : {
@@ -243,7 +245,8 @@ class ElasticsearchManager(project: Project) : Disposable {
     fun prepareCreateAlias(index: ElasticsearchIndex, alias: String): RequestExecution<*> {
         return getClient(index).prepareExecution(
             Request(
-                urlPath = "${index.cluster.host}/${index.name}/_alias/$alias",
+                host = index.cluster.host,
+                path = "${index.name}/_alias/$alias",
                 method = Method.PUT
             )
         )
@@ -256,7 +259,8 @@ class ElasticsearchManager(project: Project) : Disposable {
     fun prepareRefreshIndex(index: ElasticsearchIndex): RequestExecution<*> {
         return getClient(index).prepareExecution(
             Request(
-                urlPath = "${index.cluster.host}/${index.name}/_refresh",
+                host = index.cluster.host,
+                path = "${index.name}/_refresh",
                 method = Method.POST
             )
         )
@@ -269,7 +273,8 @@ class ElasticsearchManager(project: Project) : Disposable {
     fun prepareFlushIndex(index: ElasticsearchIndex): RequestExecution<*> {
         return getClient(index).prepareExecution(
             Request(
-                urlPath = "${index.cluster.host}/${index.name}/_flush",
+                host = index.cluster.host,
+                path = "${index.name}/_flush",
                 method = Method.POST
             )
         )
@@ -287,7 +292,8 @@ class ElasticsearchManager(project: Project) : Disposable {
     ): RequestExecution<*> {
         return getClient(index).prepareExecution(
             Request(
-                urlPath = "${index.cluster.host}/${index.name}/_forcemerge?" +
+                host = index.cluster.host,
+                path = "${index.name}/_forcemerge?" +
                         "only_expunge_deletes=$onlyExpungeDeletes&max_num_segments=$maxNumSegments&flush=$flush",
                 method = Method.POST
             )
@@ -301,7 +307,8 @@ class ElasticsearchManager(project: Project) : Disposable {
     fun prepareCloseIndex(index: ElasticsearchIndex): RequestExecution<*> {
         return getClient(index).prepareExecution(
             Request(
-                urlPath = "${index.cluster.host}/${index.name}/_close",
+                host = index.cluster.host,
+                path = "${index.name}/_close",
                 method = Method.POST
             )
         )
@@ -315,7 +322,8 @@ class ElasticsearchManager(project: Project) : Disposable {
     fun prepareOpenIndex(index: ElasticsearchIndex): RequestExecution<*> {
         return getClient(index).prepareExecution(
             Request(
-                urlPath = "${index.cluster.host}/${index.name}/_open",
+                host = index.cluster.host,
+                path = "${index.name}/_open",
                 method = Method.POST
             )
         )

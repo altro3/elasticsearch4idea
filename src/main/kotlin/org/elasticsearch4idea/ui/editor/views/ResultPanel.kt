@@ -19,15 +19,19 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
 import com.intellij.ui.JBCardLayout
 import org.elasticsearch4idea.model.ViewMode
+import org.elasticsearch4idea.ui.editor.QueryManager
+import org.elasticsearch4idea.ui.editor.RequestAndResponse
 import javax.swing.JPanel
 
 class ResultPanel(
     private val project: Project,
+    private val elasticsearchPanel: ElasticsearchPanel,
     private var currentViewMode: ViewMode
 ) : JPanel(), Disposable {
     private var jsonResultPanel: JsonResultPanel? = null
     private var tableResultPanel: TableResultPanel? = null
     private val cardLayout: JBCardLayout = JBCardLayout()
+    private lateinit var queryManager: QueryManager
 
     init {
         layout = cardLayout
@@ -41,27 +45,27 @@ class ResultPanel(
         return currentViewMode
     }
 
-    fun updateResult(result: String, mapping: String?) {
-        updateView(currentViewMode, result, mapping)
+    fun updateResult(requestAndResponse: RequestAndResponse) {
+        updateView(currentViewMode, requestAndResponse)
     }
 
-    private fun updateView(viewMode: ViewMode, result: String, mapping: String?) {
+    private fun updateView(viewMode: ViewMode, requestAndResponse: RequestAndResponse) {
         when (viewMode) {
             ViewMode.TEXT -> {
                 if (jsonResultPanel == null) {
                     jsonResultPanel = JsonResultPanel(project)
                     add(jsonResultPanel!!, "jsonResultPanel")
                 }
-                jsonResultPanel?.updateEditorText(result)
+                jsonResultPanel?.updateEditorText(requestAndResponse)
                 cardLayout.show(this, "jsonResultPanel")
             }
             ViewMode.TABLE -> {
                 if (tableResultPanel == null) {
-                    tableResultPanel = TableResultPanel()
+                    tableResultPanel = TableResultPanel(elasticsearchPanel, queryManager)
                     add(tableResultPanel!!, "tableResultPanel")
                 }
-                if (tableResultPanel?.updateResultTable(result, mapping) == false) {
-                    updateView(ViewMode.TEXT, result, mapping)
+                if (tableResultPanel?.updateResultTable(requestAndResponse) == false) {
+                    updateView(ViewMode.TEXT, requestAndResponse)
                     return
                 }
                 cardLayout.show(this, "tableResultPanel")
@@ -72,4 +76,9 @@ class ResultPanel(
     override fun dispose() {
         jsonResultPanel?.dispose()
     }
+
+    fun setQueryManager(queryManager: QueryManager) {
+        this.queryManager = queryManager
+    }
+    
 }

@@ -13,29 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.elasticsearch4idea.ui.editor.actions
 
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.DumbAwareAction
 import org.elasticsearch4idea.ui.editor.QueryManager
+import org.elasticsearch4idea.ui.editor.model.PageModel
 import org.elasticsearch4idea.ui.editor.views.ElasticsearchPanel
-import java.awt.event.InputEvent
+import java.awt.Toolkit
 import java.awt.event.KeyEvent
 
-class ExecuteQueryAction(
+class ReloadPageAction(
     private val queryManager: QueryManager,
+    private val pageModel: PageModel,
     elasticsearchPanel: ElasticsearchPanel
-) : DumbAwareAction("Execute query", "Execute query", AllIcons.Actions.Execute) {
+) :
+    DumbAwareAction("Reload page", "Reload page", AllIcons.Actions.Refresh) {
 
-    override fun actionPerformed(anActionEvent: AnActionEvent) {
-        queryManager.executeRequest()
+    init {
+        registerCustomShortcutSet(
+            KeyEvent.VK_R,
+            Toolkit.getDefaultToolkit().menuShortcutKeyMask,
+            elasticsearchPanel
+        )
+    }
+
+    override fun actionPerformed(event: AnActionEvent) {
+        queryManager.updateAndExecuteLastSearchRequest(pageModel)
     }
 
     override fun update(event: AnActionEvent) {
-    }
-
-    init {
-        registerCustomShortcutSet(KeyEvent.VK_ENTER, InputEvent.CTRL_MASK, elasticsearchPanel)
     }
 }

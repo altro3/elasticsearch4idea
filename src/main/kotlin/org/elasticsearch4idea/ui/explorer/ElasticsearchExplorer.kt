@@ -175,7 +175,8 @@ class ElasticsearchExplorer(
 
     private fun createTreePopupActions() {
         val actionPopupGroup = DefaultActionGroup("ElasticsearchExplorerPopupGroup", true)
-        val requestIndexInfoProvider = { Request("/${getSelectedIndex()?.name}", "{}", Method.GET) }
+        val requestIndexInfoProvider =
+            { Request(path = "/${getSelectedIndex()?.name}", body = "{}", method = Method.GET) }
         actionPopupGroup.add(
             RunQueryAction(
                 this,
@@ -184,7 +185,9 @@ class ElasticsearchExplorer(
                 "Index Info"
             )
         )
-        val requestIndexStatsProvider = { Request("/${getSelectedIndex()?.name}/_stats", "{}", Method.GET) }
+        val requestIndexStatsProvider = {
+            Request(path = "/${getSelectedIndex()?.name}/_stats", body = "{}", method = Method.GET)
+        }
         actionPopupGroup.add(
             RunQueryAction(
                 this,
@@ -200,7 +203,7 @@ class ElasticsearchExplorer(
         actionPopupGroup.add(FlushIndexAction(this))
         actionPopupGroup.add(ForceMergeIndexAction(this))
         actionPopupGroup.addSeparator()
-        val requestInfo = Request("/", "{}", Method.GET)
+        val requestInfo = Request(path = "/", body = "{}", method = Method.GET)
         actionPopupGroup.add(
             RunQueryAction(
                 this,
@@ -209,7 +212,7 @@ class ElasticsearchExplorer(
                 "Info"
             )
         )
-        val requestStats = Request("/_stats", "{}", Method.GET)
+        val requestStats = Request(path = "/_stats", body = "{}", method = Method.GET)
         actionPopupGroup.add(
             RunQueryAction(
                 this,
@@ -218,7 +221,7 @@ class ElasticsearchExplorer(
                 "Indices Stats"
             )
         )
-        val requestNodesStats = Request("/_nodes/stats", "{}", Method.GET)
+        val requestNodesStats = Request(path = "/_nodes/stats", body = "{}", method = Method.GET)
         actionPopupGroup.add(
             RunQueryAction(
                 this,
@@ -227,7 +230,7 @@ class ElasticsearchExplorer(
                 "Nodes Stats"
             )
         )
-        val requestNodesInfo = Request("/_nodes", "{}", Method.GET)
+        val requestNodesInfo = Request(path = "/_nodes", body = "{}", method = Method.GET)
         actionPopupGroup.add(
             RunQueryAction(
                 this,
@@ -236,7 +239,7 @@ class ElasticsearchExplorer(
                 "Nodes Info"
             )
         )
-        val requestPlugins = Request("/_nodes/plugins", "{}", Method.GET)
+        val requestPlugins = Request(path = "/_nodes/plugins", body = "{}", method = Method.GET)
         actionPopupGroup.add(
             RunQueryAction(
                 this,
@@ -245,7 +248,7 @@ class ElasticsearchExplorer(
                 "Plugins"
             )
         )
-        val requestClusterState = Request("/_cluster/state", "{}", Method.GET)
+        val requestClusterState = Request(path = "/_cluster/state", body = "{}", method = Method.GET)
         actionPopupGroup.add(
             RunQueryAction(
                 this,
@@ -254,7 +257,7 @@ class ElasticsearchExplorer(
                 "Cluster State"
             )
         )
-        val requestClusterHealth = Request("/_cluster/health", "{}", Method.GET)
+        val requestClusterHealth = Request(path = "/_cluster/health", body = "{}", method = Method.GET)
         actionPopupGroup.add(
             RunQueryAction(
                 this,
@@ -263,7 +266,7 @@ class ElasticsearchExplorer(
                 "Cluster Health"
             )
         )
-        val requestTemplates = Request("/_template", "{}", Method.GET)
+        val requestTemplates = Request(path = "/_template", body = "{}", method = Method.GET)
         actionPopupGroup.add(
             RunQueryAction(
                 this,
@@ -285,7 +288,7 @@ class ElasticsearchExplorer(
         val index = getSelectedIndex()
         if (index != null) {
             val body = "{\n  \"from\": 0,\n  \"size\": 20,\n  \"query\": {\n    \"match_all\": {}\n  }\n}"
-            val request = Request("/${index.name}/_search", body, Method.POST)
+            val request = Request(path = "/${index.name}/_search", body = body, method = Method.POST)
             openQueryEditor(index.cluster, request)
             return
         }
