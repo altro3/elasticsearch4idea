@@ -35,7 +35,7 @@ import com.intellij.util.ui.components.BorderLayoutPanel
 import org.elasticsearch4idea.model.Method
 import org.elasticsearch4idea.model.Request
 import org.elasticsearch4idea.model.ViewMode
-import org.elasticsearch4idea.service.ElasticsearchConfiguration
+import org.elasticsearch4idea.service.GlobalSettings
 import org.elasticsearch4idea.ui.editor.ElasticsearchFile
 import org.elasticsearch4idea.ui.editor.QueryManager
 import org.elasticsearch4idea.ui.editor.actions.ChangeOrientationAction
@@ -57,13 +57,13 @@ class ElasticsearchPanel(
     private val methodCombo = ComboBox(EnumComboBoxModel(Method::class.java), 85)
         .also { it.preferredSize = Dimension(it.width, 28) }
     private val urlField = UrlField()
-    private val elasticsearchConfiguration = project.service<ElasticsearchConfiguration>()
-    val splitter: Splitter
+    private val splitter: Splitter
+    private val globalSettings = service<GlobalSettings>()
 
     init {
         layout = BorderLayout()
         bodyPanel = BodyPanel(project)
-        resultPanel = ResultPanel(project, this, elasticsearchConfiguration.viewMode)
+        resultPanel = ResultPanel(project, this)
         queryManager = QueryManager(project, elasticsearchFile.cluster, this::getRequest)
         queryManager.addResponseListener {
             WriteCommandAction.runWriteCommandAction(project) {
@@ -85,7 +85,7 @@ class ElasticsearchPanel(
             bodyPanel.isVisible = selectedMethod == Method.POST || selectedMethod == Method.PUT
         }
 
-        splitter = Splitter(true, 0.3f)
+        splitter = Splitter(globalSettings.settings.isVerticalOrientation, 0.3f)
         splitter.divider.background = UIUtil.SIDE_PANEL_BACKGROUND
         splitter.firstComponent = bodyPanel
         splitter.secondComponent = resultPanel
@@ -149,12 +149,25 @@ class ElasticsearchPanel(
         bodyPanel.dispose()
     }
 
+    fun getViewMode(): ViewMode {
+        return resultPanel.getCurrentViewMode()
+    }
+
     fun setViewMode(viewMode: ViewMode) {
         if (resultPanel.getCurrentViewMode() == viewMode) {
             return
         }
         resultPanel.setCurrentViewMode(viewMode)
         queryManager.executeRequest()
+    }
+
+    fun isVerticalOrientation(): Boolean {
+        return splitter.orientation
+    }
+
+    fun changeOrientation() {
+        splitter.orientation = !splitter.orientation
+        globalSettings.settings.isVerticalOrientation = splitter.orientation
     }
 
     private fun updateFromRequest(request: Request) {

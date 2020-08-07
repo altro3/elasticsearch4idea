@@ -44,7 +44,6 @@ class ElasticsearchConfiguration(private val project: Project) :
     PersistentStateComponent<ElasticsearchConfiguration.State> {
 
     private val clusterConfigurations: MutableMap<String, ClusterConfiguration> = ConcurrentHashMap()
-    var viewMode: ViewMode = ViewMode.TEXT
 
     override fun getState(): State {
         val clusters = HashMap<String, ClusterConfigInternal>()
@@ -59,11 +58,10 @@ class ElasticsearchConfiguration(private val project: Project) :
                 ClusterConfigInternal(id, config.label, config.url, credentialsStored, credentialsStored)
             )
         }
-        return State(clusters, viewMode)
+        return State(clusters)
     }
 
     override fun loadState(state: State) {
-        this.viewMode = state.viewMode
         clusterConfigurations.clear()
 
         state.clusterConfigurations.asSequence().map {

@@ -19,19 +19,15 @@ package org.elasticsearch4idea.ui.editor.actions
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.ToggleOptionAction
-import com.intellij.openapi.components.service
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import org.elasticsearch4idea.model.ViewMode
-import org.elasticsearch4idea.service.ElasticsearchConfiguration
 import org.elasticsearch4idea.ui.editor.views.ElasticsearchPanel
 
 class ViewAsActionGroup(
     private val elasticsearchPanel: ElasticsearchPanel,
     project: Project
 ) : DefaultActionGroup("Auto-refresh clusters", true), DumbAware {
-
-    private val elasticsearchConfiguration = project.service<ElasticsearchConfiguration>()
 
     init {
         templatePresentation.icon = AllIcons.Actions.Show
@@ -52,12 +48,11 @@ class ViewAsActionGroup(
         }
 
         override fun setSelected(selected: Boolean) {
-            this@ViewAsActionGroup.elasticsearchConfiguration.viewMode = option
             elasticsearchPanel.setViewMode(option)
         }
 
         override fun isSelected(): Boolean {
-            return this@ViewAsActionGroup.elasticsearchConfiguration.viewMode == option
+            return elasticsearchPanel.getViewMode() == option
         }
 
     }

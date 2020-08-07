@@ -26,15 +26,15 @@ class ChangeOrientationAction(
 ) :
     DumbAwareAction(
         "Change orientation", "Change orientation",
-        if (elasticsearchPanel.splitter.isVertical) Icons.PREVIEW_DETAILS else Icons.PREVIEW_DETAILS_VERTICALLY
+        if (elasticsearchPanel.isVerticalOrientation()) Icons.PREVIEW_DETAILS else Icons.PREVIEW_DETAILS_VERTICALLY
     ) {
 
     override fun actionPerformed(event: AnActionEvent) {
-        elasticsearchPanel.splitter.orientation = !elasticsearchPanel.splitter.orientation
+        elasticsearchPanel.changeOrientation()
     }
 
     override fun update(e: AnActionEvent) {
         e.presentation.icon =
-            if (elasticsearchPanel.splitter.isVertical) Icons.PREVIEW_DETAILS else Icons.PREVIEW_DETAILS_VERTICALLY
+            if (elasticsearchPanel.isVerticalOrientation()) Icons.PREVIEW_DETAILS else Icons.PREVIEW_DETAILS_VERTICALLY
     }
 }

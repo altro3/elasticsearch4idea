@@ -16,37 +16,39 @@
 package org.elasticsearch4idea.ui.editor.views
 
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.ui.JBCardLayout
 import org.elasticsearch4idea.model.ViewMode
+import org.elasticsearch4idea.service.GlobalSettings
 import org.elasticsearch4idea.ui.editor.QueryManager
 import org.elasticsearch4idea.ui.editor.RequestAndResponse
 import javax.swing.JPanel
 
 class ResultPanel(
     private val project: Project,
-    private val elasticsearchPanel: ElasticsearchPanel,
-    private var currentViewMode: ViewMode
+    private val elasticsearchPanel: ElasticsearchPanel
 ) : JPanel(), Disposable {
     private var jsonResultPanel: JsonResultPanel? = null
     private var tableResultPanel: TableResultPanel? = null
     private val cardLayout: JBCardLayout = JBCardLayout()
     private lateinit var queryManager: QueryManager
+    private val globalSettings = service<GlobalSettings>()
 
     init {
         layout = cardLayout
     }
 
     fun setCurrentViewMode(viewMode: ViewMode) {
-        currentViewMode = viewMode
+        globalSettings.settings.viewMode = viewMode
     }
 
     fun getCurrentViewMode(): ViewMode {
-        return currentViewMode
+        return globalSettings.settings.viewMode
     }
 
     fun updateResult(requestAndResponse: RequestAndResponse) {
-        updateView(currentViewMode, requestAndResponse)
+        updateView(getCurrentViewMode(), requestAndResponse)
     }
 
     private fun updateView(viewMode: ViewMode, requestAndResponse: RequestAndResponse) {
@@ -80,5 +82,5 @@ class ResultPanel(
     fun setQueryManager(queryManager: QueryManager) {
         this.queryManager = queryManager
     }
-    
+
 }
