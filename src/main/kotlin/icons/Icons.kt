@@ -32,7 +32,8 @@ object Icons {
     val SUCCESS = load("/icons/success.svg")
     val ELASTICSEARCH_LOGO = load("/icons/logo-elasticsearch-13.svg")
     val QUERY_EDITOR = load("/icons/query_editor.svg")
-    val AUTO_REFRSH = load("/icons/auto_refresh.svg")
+    val PREVIEW_DETAILS = load("/icons/previewDetails.svg")
+    val PREVIEW_DETAILS_VERTICALLY = load("/icons/previewDetailsVertically.svg")
 
     private fun load(path: String): Icon {
         return IconManager.getInstance().getIcon(path, Icons::class.java)

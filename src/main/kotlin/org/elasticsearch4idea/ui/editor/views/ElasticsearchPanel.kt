@@ -38,6 +38,7 @@ import org.elasticsearch4idea.model.ViewMode
 import org.elasticsearch4idea.service.ElasticsearchConfiguration
 import org.elasticsearch4idea.ui.editor.ElasticsearchFile
 import org.elasticsearch4idea.ui.editor.QueryManager
+import org.elasticsearch4idea.ui.editor.actions.ChangeOrientationAction
 import org.elasticsearch4idea.ui.editor.actions.ExecuteQueryAction
 import org.elasticsearch4idea.ui.editor.actions.ViewAsActionGroup
 import java.awt.BorderLayout
@@ -57,6 +58,7 @@ class ElasticsearchPanel(
         .also { it.preferredSize = Dimension(it.width, 28) }
     private val urlField = UrlField()
     private val elasticsearchConfiguration = project.service<ElasticsearchConfiguration>()
+    val splitter: Splitter
 
     init {
         layout = BorderLayout()
@@ -73,8 +75,6 @@ class ElasticsearchPanel(
         }
         resultPanel.setQueryManager(queryManager)
         initUrlComponent()
-        val toolbar = createToolbarPanel()
-        add(toolbar, BorderLayout.NORTH)
 
         bodyPanel.updateQueryView(elasticsearchFile.request.body)
         methodCombo.selectedItem = elasticsearchFile.request.method
@@ -85,10 +85,12 @@ class ElasticsearchPanel(
             bodyPanel.isVisible = selectedMethod == Method.POST || selectedMethod == Method.PUT
         }
 
-        val splitter = Splitter(true, 0.3f)
+        splitter = Splitter(true, 0.3f)
         splitter.divider.background = UIUtil.SIDE_PANEL_BACKGROUND
         splitter.firstComponent = bodyPanel
         splitter.secondComponent = resultPanel
+        val toolbar = createToolbarPanel()
+        add(toolbar, BorderLayout.NORTH)
         add(splitter, BorderLayout.CENTER)
     }
 
@@ -111,6 +113,7 @@ class ElasticsearchPanel(
         val group = DefaultActionGroup()
         group.add(ExecuteQueryAction(queryManager, this))
         group.add(ViewAsActionGroup(this, project))
+        group.add(ChangeOrientationAction(this))
         val actionToolBar = ActionManager.getInstance()
             .createActionToolbar("ElasticsearchQueryToolBar", group, true) as ActionToolbarImpl
         actionToolBar.setTargetComponent(this)
