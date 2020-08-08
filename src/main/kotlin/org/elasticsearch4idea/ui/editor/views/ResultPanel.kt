@@ -19,24 +19,28 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.ui.JBCardLayout
+import com.intellij.ui.components.JBLoadingPanel
 import org.elasticsearch4idea.model.ViewMode
 import org.elasticsearch4idea.service.GlobalSettings
 import org.elasticsearch4idea.ui.editor.QueryManager
 import org.elasticsearch4idea.ui.editor.RequestAndResponse
+import java.awt.BorderLayout
 import javax.swing.JPanel
 
 class ResultPanel(
     private val project: Project,
     private val elasticsearchPanel: ElasticsearchPanel
-) : JPanel(), Disposable {
+) : JBLoadingPanel(BorderLayout(), elasticsearchPanel, 100), Disposable {
     private var jsonResultPanel: JsonResultPanel? = null
     private var tableResultPanel: TableResultPanel? = null
     private val cardLayout: JBCardLayout = JBCardLayout()
+    private val mainPanel: JPanel
     private lateinit var queryManager: QueryManager
     private val globalSettings = service<GlobalSettings>()
 
     init {
-        layout = cardLayout
+        mainPanel = JPanel(cardLayout)
+        add(mainPanel)
     }
 
     fun setCurrentViewMode(viewMode: ViewMode) {
@@ -56,21 +60,21 @@ class ResultPanel(
             ViewMode.TEXT -> {
                 if (jsonResultPanel == null) {
                     jsonResultPanel = JsonResultPanel(project)
-                    add(jsonResultPanel!!, "jsonResultPanel")
+                    mainPanel.add(jsonResultPanel!!, "jsonResultPanel")
                 }
                 jsonResultPanel?.updateEditorText(requestAndResponse)
-                cardLayout.show(this, "jsonResultPanel")
+                cardLayout.show(mainPanel, "jsonResultPanel")
             }
             ViewMode.TABLE -> {
                 if (tableResultPanel == null) {
                     tableResultPanel = TableResultPanel(elasticsearchPanel, queryManager)
-                    add(tableResultPanel!!, "tableResultPanel")
+                    mainPanel.add(tableResultPanel!!, "tableResultPanel")
                 }
                 if (tableResultPanel?.updateResultTable(requestAndResponse) == false) {
                     updateView(ViewMode.TEXT, requestAndResponse)
                     return
                 }
-                cardLayout.show(this, "tableResultPanel")
+                cardLayout.show(mainPanel, "tableResultPanel")
             }
         }
     }

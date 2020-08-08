@@ -23,7 +23,6 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.actionSystem.DefaultActionGroup
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.SimpleToolWindowPanel
@@ -33,6 +32,7 @@ import com.intellij.ui.AnimatedIcon
 import com.intellij.ui.PopupHandler
 import com.intellij.ui.ScrollPaneFactory
 import com.intellij.ui.TreeSpeedSearch
+import com.intellij.ui.components.JBLoadingPanel
 import com.intellij.ui.tree.AsyncTreeModel
 import com.intellij.ui.tree.StructureTreeModel
 import com.intellij.ui.treeStructure.Tree
@@ -70,23 +70,25 @@ class ElasticsearchExplorer(
 
     private val tree: Tree
     private val table: ElasticsearchInfosTable
+    private val infoTablePanel: JBLoadingPanel
     private val elasticsearchManager = project.service<ElasticsearchManager>()
 
     init {
         table = ElasticsearchInfosTable()
-        val infosPanel = JPanel(BorderLayout())
-        infosPanel.add(ScrollPaneFactory.createScrollPane(table))
+        infoTablePanel = JBLoadingPanel(BorderLayout(), this, 100)
+        infoTablePanel.add(ScrollPaneFactory.createScrollPane(table))
 
         val treePanel = JPanel(BorderLayout())
         tree = createTree()
         toolbar = createToolbarPanel()
         createTreePopupActions()
+        table.emptyText.text = TABLE_EMPTY_TEXT
 
         treePanel.add(ScrollPaneFactory.createScrollPane(tree))
 
         val splitter = Splitter(true, 0.6f)
         splitter.firstComponent = treePanel
-        splitter.secondComponent = infosPanel
+        splitter.secondComponent = infoTablePanel
         splitter.divider.background = UIUtil.getListBackground()
 
         setContent(splitter)
@@ -148,10 +150,13 @@ class ElasticsearchExplorer(
     fun updateNodeInfo() {
         val cluster = this.getSelectedCluster()
         if (cluster != null && cluster.isLoaded()) {
+            table.emptyText.text = ""
+            infoTablePanel.startLoading()
             TaskUtils.runBackgroundTask("Getting Elasticsearch cluster info...") {
                 elasticsearchManager.prepareGetClusterInfo(cluster)
                     .finally { clusterInfo, _ ->
-                        ApplicationManager.getApplication().invokeLater {
+                        UIUtil.invokeLaterIfNeeded {
+                            infoTablePanel.stopLoading()
                             table.updateInfos(clusterInfo?.toTableEntryList().orEmpty())
                         }
                     }
@@ -160,10 +165,13 @@ class ElasticsearchExplorer(
         }
         val index = this.getSelectedIndex()
         if (index != null && index.cluster.isLoaded()) {
+            table.emptyText.text = ""
+            infoTablePanel.startLoading()
             TaskUtils.runBackgroundTask("Getting Elasticsearch index info...") {
                 elasticsearchManager.prepareGetIndexInfo(index)
                     .finally { indexInfo, _ ->
-                        ApplicationManager.getApplication().invokeLater {
+                        UIUtil.invokeLaterIfNeeded {
+                            infoTablePanel.stopLoading()
                             table.updateInfos(indexInfo?.toTableEntryList().orEmpty())
                         }
                     }
@@ -171,6 +179,7 @@ class ElasticsearchExplorer(
             return
         }
         table.updateInfos(emptyList())
+        table.emptyText.text = TABLE_EMPTY_TEXT
     }
 
     private fun createTreePopupActions() {
@@ -397,6 +406,10 @@ class ElasticsearchExplorer(
 
     fun removeSelectedCluster(selectedCluster: ElasticsearchCluster) {
         elasticsearchManager.removeCluster(selectedCluster.label)
+    }
+
+    companion object {
+        private const val TABLE_EMPTY_TEXT = "Nothing to show"
     }
 
 }

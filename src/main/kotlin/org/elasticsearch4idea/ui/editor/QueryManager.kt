@@ -28,13 +28,15 @@ import org.apache.http.client.utils.URIBuilder
 import org.elasticsearch4idea.model.*
 import org.elasticsearch4idea.service.ElasticsearchManager
 import org.elasticsearch4idea.ui.editor.model.PageModel
+import org.elasticsearch4idea.ui.editor.views.ResultPanel
 import org.elasticsearch4idea.utils.TaskUtils
 
 
 class QueryManager(
     private val project: Project,
     private val cluster: ElasticsearchCluster,
-    private val requestProvider: () -> Request
+    private val requestProvider: () -> Request,
+    private val resultPanel: ResultPanel
 ) {
     private val responseListeners: MutableList<Listener<RequestAndResponse>> = mutableListOf()
     private lateinit var lastSearchRequest: Request
@@ -64,6 +66,7 @@ class QueryManager(
         responseListener: Listener<RequestAndResponse>
     ) {
         TaskUtils.runBackgroundTask("Executing request...") {
+            resultPanel.startLoading()
             val elasticsearchManager = project.service<ElasticsearchManager>()
             val mappingRequestExecution = if (request.path.contains("_search")) {
                 lastSearchRequest = request
@@ -109,6 +112,11 @@ class QueryManager(
                 .onError {
                     UIUtil.invokeLaterIfNeeded {
                         Messages.showErrorDialog(it.message, "Error")
+                    }
+                }
+                .finally { _, _ ->
+                    UIUtil.invokeLaterIfNeeded {
+                        resultPanel.stopLoading()
                     }
                 }
         }

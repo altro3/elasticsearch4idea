@@ -64,7 +64,7 @@ class ElasticsearchPanel(
         layout = BorderLayout()
         bodyPanel = BodyPanel(project)
         resultPanel = ResultPanel(project, this)
-        queryManager = QueryManager(project, elasticsearchFile.cluster, this::getRequest)
+        queryManager = QueryManager(project, elasticsearchFile.cluster, this::getRequest, resultPanel)
         queryManager.addResponseListener {
             WriteCommandAction.runWriteCommandAction(project) {
                 UIUtil.invokeLaterIfNeeded {
@@ -144,11 +144,6 @@ class ElasticsearchPanel(
         return resultPanel
     }
 
-    override fun dispose() {
-        resultPanel.dispose()
-        bodyPanel.dispose()
-    }
-
     fun getViewMode(): ViewMode {
         return resultPanel.getCurrentViewMode()
     }
@@ -188,6 +183,11 @@ class ElasticsearchPanel(
             body = body,
             method = getMethod()
         )
+    }
+
+    override fun dispose() {
+        resultPanel.dispose()
+        bodyPanel.dispose()
     }
 
     internal class UrlField : SearchTextField() {

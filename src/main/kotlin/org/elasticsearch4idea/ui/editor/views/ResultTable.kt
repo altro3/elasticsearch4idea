@@ -52,6 +52,7 @@ class ResultTable internal constructor(
     init {
         setAutoResizeMode(JTable.AUTO_RESIZE_OFF)
         setCellSelectionEnabled(true)
+        emptyText.text = ""
 
         val colorsScheme = EditorColorsManager.getInstance().globalScheme
         val font: Font = colorsScheme.getFont(EditorFontType.PLAIN)
