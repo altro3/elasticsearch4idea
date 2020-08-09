@@ -124,12 +124,7 @@ class QueryManager(
 
     private fun updateLastSearchRequest(pageModel: PageModel) {
         lastSearchRequest = when (lastSearchRequest.method) {
-            Method.GET -> {
-                val uriBuilder = URIBuilder(lastSearchRequest.path)
-                uriBuilder.setParameter("from", (pageModel.getFromForRequest()).toString())
-                uriBuilder.setParameter("size", pageModel.getSizeForRequest().toString())
-                lastSearchRequest.copy(path = uriBuilder.toString())
-            }
+            Method.GET,
             Method.POST -> {
                 val body = if (lastSearchRequest.body.isBlank()) "{}" else lastSearchRequest.body
                 val jsonObject: JsonObject = GSON.fromJson(body, JsonElement::class.java).asJsonObject

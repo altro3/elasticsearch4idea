@@ -82,7 +82,7 @@ class ElasticsearchPanel(
 
         methodCombo.addItemListener {
             val selectedMethod = it.item as Method
-            bodyPanel.isVisible = selectedMethod == Method.POST || selectedMethod == Method.PUT
+            bodyPanel.isVisible = selectedMethod.hasBody
         }
 
         splitter = Splitter(globalSettings.settings.isVerticalOrientation, 0.3f)
@@ -172,7 +172,7 @@ class ElasticsearchPanel(
     }
 
     private fun getRequest(): Request {
-        val body = if (getMethod() == Method.POST || getMethod() == Method.PUT) {
+        val body = if (getMethod().hasBody) {
             bodyPanel.getBody()
         } else {
             ""

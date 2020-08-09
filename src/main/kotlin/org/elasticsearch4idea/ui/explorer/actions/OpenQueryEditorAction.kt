@@ -30,7 +30,7 @@ class OpenQueryEditorAction(
     override fun actionPerformed(e: AnActionEvent) {
         val cluster = elasticsearchExplorer.getSelectedCluster()
         if (cluster != null) {
-            elasticsearchExplorer.openQueryEditor(cluster, Request(path = "/", body = "{}", method = Method.GET))
+            elasticsearchExplorer.openQueryEditor(cluster, Request(path = "/", method = Method.GET))
             return
         }
         if (elasticsearchExplorer.getSelectedIndex() != null) {

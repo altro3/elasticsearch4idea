@@ -14,15 +14,21 @@
  * limitations under the License.
  */
 
-package org.elasticsearch4idea.model
+package org.elasticsearch4idea.rest
 
-enum class Method(
-    val hasBody: Boolean
-) {
-    GET(true),
-    POST(true),
-    PUT(true),
-    HEAD(false),
-    DELETE(false);
+import org.apache.http.client.methods.HttpEntityEnclosingRequestBase
+import java.net.URI
+
+class MyHttpGet(uri: URI) : HttpEntityEnclosingRequestBase() {
+
+    constructor(uri: String) : this(URI.create(uri))
+
+    init {
+        setURI(uri)
+    }
+
+    override fun getMethod(): String? {
+        return "GET"
+    }
 
 }
