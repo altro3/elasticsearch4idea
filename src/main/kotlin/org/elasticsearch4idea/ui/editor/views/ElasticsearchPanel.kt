@@ -37,9 +37,8 @@ import org.elasticsearch4idea.model.ViewMode
 import org.elasticsearch4idea.service.GlobalSettings
 import org.elasticsearch4idea.ui.editor.ElasticsearchFile
 import org.elasticsearch4idea.ui.editor.QueryManager
-import org.elasticsearch4idea.ui.editor.actions.ChangeOrientationAction
 import org.elasticsearch4idea.ui.editor.actions.ExecuteQueryAction
-import org.elasticsearch4idea.ui.editor.actions.ViewAsActionGroup
+import org.elasticsearch4idea.ui.editor.actions.SettingsActionGroup
 import java.awt.BorderLayout
 import java.awt.Dimension
 import javax.swing.JPanel
@@ -103,8 +102,8 @@ class ElasticsearchPanel(
     private fun createToolbarPanel(): JPanel {
         val group = DefaultActionGroup()
         group.add(ExecuteQueryAction(queryManager, this))
-        group.add(ViewAsActionGroup(this))
-        group.add(ChangeOrientationAction(this))
+//        group.add(ViewAsActionGroup(this))
+        group.add(SettingsActionGroup(this))
         val actionToolBar = ActionManager.getInstance()
             .createActionToolbar("ElasticsearchQueryToolBar", group, true) as ActionToolbarImpl
         actionToolBar.setTargetComponent(this)
@@ -151,9 +150,9 @@ class ElasticsearchPanel(
         return splitter.orientation
     }
 
-    fun changeOrientation() {
-        splitter.orientation = !splitter.orientation
-        globalSettings.settings.isVerticalOrientation = splitter.orientation
+    fun setOrientation(isVertical: Boolean) {
+        splitter.orientation = isVertical
+        globalSettings.settings.isVerticalOrientation = isVertical
     }
 
     fun updateFromRequest(request: Request) {

@@ -28,7 +28,6 @@ import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.util.xmlb.annotations.Property
 import org.elasticsearch4idea.model.ClusterConfiguration
-import org.elasticsearch4idea.model.ViewMode
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.collections.HashMap
@@ -189,10 +188,7 @@ class ElasticsearchConfiguration : PersistentStateComponent<ElasticsearchConfigu
         return clusterConfigurations[name]
     }
 
-    class State(
-        var clusterConfigurations: Map<String, ClusterConfigInternal> = HashMap(),
-        var viewMode: ViewMode = ViewMode.TEXT
-    )
+    class State(var clusterConfigurations: Map<String, ClusterConfigInternal> = HashMap())
 
     class ClusterConfigInternal(
         var id: String = "",

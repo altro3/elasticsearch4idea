@@ -16,41 +16,38 @@
 
 package org.elasticsearch4idea.ui.editor.actions
 
-import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.ToggleOptionAction
 import com.intellij.openapi.project.DumbAware
-import org.elasticsearch4idea.model.ViewMode
+import icons.Icons
 import org.elasticsearch4idea.ui.editor.views.ElasticsearchPanel
+import javax.swing.Icon
 
-class ViewAsActionGroup(private val elasticsearchPanel: ElasticsearchPanel) :
-    DefaultActionGroup("Auto-refresh clusters", true), DumbAware {
+class ViewPositionActionGroup(private val elasticsearchPanel: ElasticsearchPanel) :
+    DefaultActionGroup("View position", true),
+    DumbAware {
 
     init {
-        templatePresentation.icon = AllIcons.Actions.Show
-        templatePresentation.text = "View as"
-        ViewMode.values().forEach {
-            add(Action(Option(it)))
-        }
+        add(Action(Option(true), Icons.VERTICAL_VIEW))
+        add(Action(Option(false), Icons.HORIZONTAL_VIEW))
     }
 
-    class Action(option: Option) : ToggleOptionAction(option), DumbAware
+    class Action(option: Option, icon: Icon) : ToggleOptionAction(option, icon), DumbAware
 
     inner class Option(
-        private val option: ViewMode
+        private val isVertical: Boolean
     ) : ToggleOptionAction.Option {
 
         override fun getName(): String? {
-            return option.text
+            return if (isVertical) "Vertically" else "Horizontally"
         }
 
         override fun setSelected(selected: Boolean) {
-            elasticsearchPanel.setViewMode(option)
+            elasticsearchPanel.setOrientation(isVertical)
         }
 
         override fun isSelected(): Boolean {
-            return elasticsearchPanel.getViewMode() == option
+            return elasticsearchPanel.isVerticalOrientation() == isVertical
         }
-
     }
 }

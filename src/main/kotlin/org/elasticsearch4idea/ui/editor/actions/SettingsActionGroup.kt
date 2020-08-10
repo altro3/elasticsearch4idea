@@ -16,25 +16,17 @@
 
 package org.elasticsearch4idea.ui.editor.actions
 
-import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.project.DumbAwareAction
-import icons.Icons
+import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.DefaultActionGroup
+import com.intellij.openapi.project.DumbAware
 import org.elasticsearch4idea.ui.editor.views.ElasticsearchPanel
 
-class ChangeOrientationAction(
-    private val elasticsearchPanel: ElasticsearchPanel
-) :
-    DumbAwareAction(
-        "Change orientation", "Change orientation",
-        if (elasticsearchPanel.isVerticalOrientation()) Icons.PREVIEW_DETAILS else Icons.PREVIEW_DETAILS_VERTICALLY
-    ) {
+class SettingsActionGroup(elasticsearchPanel: ElasticsearchPanel) : DefaultActionGroup("Settings", true), DumbAware {
+    init {
+        templatePresentation.icon = AllIcons.General.GearPlain
+        templatePresentation.text = "Settings"
 
-    override fun actionPerformed(event: AnActionEvent) {
-        elasticsearchPanel.changeOrientation()
-    }
-
-    override fun update(e: AnActionEvent) {
-        e.presentation.icon =
-            if (elasticsearchPanel.isVerticalOrientation()) Icons.PREVIEW_DETAILS else Icons.PREVIEW_DETAILS_VERTICALLY
+        add(ViewModeActionGroup(elasticsearchPanel))
+        add(ViewPositionActionGroup(elasticsearchPanel))
     }
 }
