@@ -27,7 +27,7 @@ import com.intellij.util.ui.ListTableModel
 import org.elasticsearch4idea.ui.editor.model.Hit
 import org.elasticsearch4idea.ui.editor.model.Mapping
 import org.elasticsearch4idea.ui.editor.model.MappingNode
-import org.elasticsearch4idea.ui.editor.model.ResultModel
+import org.elasticsearch4idea.ui.editor.model.ResponseContext
 import org.elasticsearch4idea.ui.editor.table.NumberColumnCellRenderer
 import org.elasticsearch4idea.ui.editor.table.ResultTableCellRenderer
 import org.elasticsearch4idea.ui.editor.table.ResultTableHeaderRenderer
@@ -104,27 +104,27 @@ class ResultTable internal constructor(
         }
     }
 
-    fun updateTable(resultModel: ResultModel) {
-        val listTableModel = createListTableModel(resultModel)
+    fun updateTable(responseContext: ResponseContext) {
+        val listTableModel = createListTableModel(responseContext)
         setModelAndUpdateColumns(listTableModel)
         adjustColumnsBySize()
     }
 
     companion object {
 
-        fun createResultTable(resultModel: ResultModel): ResultTable {
-            return ResultTable(createListTableModel(resultModel))
+        fun createResultTable(responseContext: ResponseContext): ResultTable {
+            return ResultTable(createListTableModel(responseContext))
         }
 
-        private fun createListTableModel(resultModel: ResultModel): ListTableModel<ResultTableEntry> {
-            val entries = createTableEntries(resultModel)
-            val columns = createColumns(resultModel.mappings, entries)
+        private fun createListTableModel(responseContext: ResponseContext): ListTableModel<ResultTableEntry> {
+            val entries = createTableEntries(responseContext)
+            val columns = createColumns(responseContext.getMappings(), entries)
             return ListTableModel(columns.toTypedArray(), entries)
         }
 
-        private fun createTableEntries(resultModel: ResultModel): List<ResultTableEntry> {
-            return resultModel.hits.asIterable().asSequence()
-                .mapIndexed { index, hit -> ResultTableEntry(index + resultModel.from + 1, hit) }
+        private fun createTableEntries(responseContext: ResponseContext): List<ResultTableEntry> {
+            return responseContext.getHits().asIterable().asSequence()
+                .mapIndexed { index, hit -> ResultTableEntry(index + responseContext.getFrom() + 1, hit) }
                 .toList()
         }
 

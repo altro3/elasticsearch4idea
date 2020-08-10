@@ -30,7 +30,7 @@ import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFile
 import com.intellij.psi.codeStyle.CodeStyleManager
 import com.intellij.testFramework.LightVirtualFile
-import org.elasticsearch4idea.ui.editor.RequestAndResponse
+import org.elasticsearch4idea.ui.editor.model.ResponseContext
 import java.awt.BorderLayout
 import javax.swing.JPanel
 
@@ -57,8 +57,8 @@ class JsonResultPanel(private val project: Project) : JPanel(), Disposable {
         add(editor.component, BorderLayout.CENTER)
     }
 
-    fun updateEditorText(requestAndResponse: RequestAndResponse) {
-        editorDocument.setText(requestAndResponse.response)
+    fun updateEditorText(responseContext: ResponseContext) {
+        editorDocument.setText(responseContext.response)
         PsiDocumentManager.getInstance(project).commitDocument(editorDocument)
         CodeStyleManager.getInstance(project).reformatText(psiFile, 0, psiFile.textRange.endOffset)
     }

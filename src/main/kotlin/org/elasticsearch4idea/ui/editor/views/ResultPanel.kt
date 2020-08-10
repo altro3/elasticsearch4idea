@@ -16,31 +16,48 @@
 package org.elasticsearch4idea.ui.editor.views
 
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.ui.JBCardLayout
 import com.intellij.ui.components.JBLoadingPanel
+import com.intellij.util.ui.UIUtil
 import org.elasticsearch4idea.model.ViewMode
 import org.elasticsearch4idea.service.GlobalSettings
 import org.elasticsearch4idea.ui.editor.QueryManager
-import org.elasticsearch4idea.ui.editor.RequestAndResponse
+import org.elasticsearch4idea.ui.editor.model.PageModel
+import org.elasticsearch4idea.ui.editor.model.ResponseContext
 import java.awt.BorderLayout
 import javax.swing.JPanel
 
 class ResultPanel(
     private val project: Project,
-    private val elasticsearchPanel: ElasticsearchPanel
+    private val elasticsearchPanel: ElasticsearchPanel,
+    private val queryManager: QueryManager
 ) : JBLoadingPanel(BorderLayout(), elasticsearchPanel, 100), Disposable {
     private var jsonResultPanel: JsonResultPanel? = null
     private var tableResultPanel: TableResultPanel? = null
     private val cardLayout: JBCardLayout = JBCardLayout()
     private val mainPanel: JPanel
-    private lateinit var queryManager: QueryManager
     private val globalSettings = service<GlobalSettings>()
+    private val pageModel = PageModel(0, 20, 0, 0)
+    private val paginationPanel: JPanel
 
     init {
         mainPanel = JPanel(cardLayout)
-        add(mainPanel)
+        add(mainPanel, BorderLayout.CENTER)
+        paginationPanel = PaginationPanel(elasticsearchPanel, queryManager, pageModel)
+        add(paginationPanel, BorderLayout.SOUTH)
+
+        queryManager.addResponseListener {
+            WriteCommandAction.runWriteCommandAction(project) {
+                UIUtil.invokeLaterIfNeeded {
+                    elasticsearchPanel.updateFromRequest(it.request)
+                    updateResult(it)
+                }
+            }
+        }
+        queryManager.setLoadingPanel(this)
     }
 
     fun setCurrentViewMode(viewMode: ViewMode) {
@@ -51,28 +68,40 @@ class ResultPanel(
         return globalSettings.settings.viewMode
     }
 
-    fun updateResult(requestAndResponse: RequestAndResponse) {
-        updateView(getCurrentViewMode(), requestAndResponse)
+    fun updateResult(responseContext: ResponseContext) {
+        updateView(getCurrentViewMode(), responseContext)
     }
 
-    private fun updateView(viewMode: ViewMode, requestAndResponse: RequestAndResponse) {
+    private fun updateView(viewMode: ViewMode, responseContext: ResponseContext) {
         when (viewMode) {
             ViewMode.TEXT -> {
                 if (jsonResultPanel == null) {
                     jsonResultPanel = JsonResultPanel(project)
                     mainPanel.add(jsonResultPanel!!, "jsonResultPanel")
                 }
-                jsonResultPanel?.updateEditorText(requestAndResponse)
+                if (responseContext.isValidSearchRequest()) {
+                    paginationPanel.isVisible = true
+                    pageModel.update(responseContext)
+                } else {
+                    paginationPanel.isVisible = false
+                }
+                jsonResultPanel?.updateEditorText(responseContext)
                 cardLayout.show(mainPanel, "jsonResultPanel")
             }
             ViewMode.TABLE -> {
                 if (tableResultPanel == null) {
-                    tableResultPanel = TableResultPanel(elasticsearchPanel, queryManager)
+                    tableResultPanel = TableResultPanel()
                     mainPanel.add(tableResultPanel!!, "tableResultPanel")
                 }
-                if (tableResultPanel?.updateResultTable(requestAndResponse) == false) {
-                    updateView(ViewMode.TEXT, requestAndResponse)
+                if (tableResultPanel?.updateResultTable(responseContext) == false) {
+                    updateView(ViewMode.TEXT, responseContext)
                     return
+                }
+                if (responseContext.isValidSearchRequest()) {
+                    paginationPanel.isVisible = true
+                    pageModel.update(responseContext)
+                } else {
+                    paginationPanel.isVisible = false
                 }
                 cardLayout.show(mainPanel, "tableResultPanel")
             }
@@ -81,10 +110,6 @@ class ResultPanel(
 
     override fun dispose() {
         jsonResultPanel?.dispose()
-    }
-
-    fun setQueryManager(queryManager: QueryManager) {
-        this.queryManager = queryManager
     }
 
 }

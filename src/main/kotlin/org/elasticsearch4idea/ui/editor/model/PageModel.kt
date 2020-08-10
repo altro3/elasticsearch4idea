@@ -83,15 +83,15 @@ class PageModel(
         setPageStart(0)
     }
 
-    fun update(resultModel: ResultModel, isNewRequest: Boolean) {
+    fun update(responseContext: ResponseContext) {
         var size = pageSize
-        if (isNewRequest) {
+        if (responseContext.isNewRequest) {
             displayedTotal = null
-            size = resultModel.size
+            size = responseContext.getSize()
         }
         pageSize = size
-        total = resultModel.total
-        setPageStart(resultModel.from)
+        total = responseContext.getTotal()
+        setPageStart(responseContext.getFrom())
 
         listeners.forEach { it.onModelChanged(this) }
     }

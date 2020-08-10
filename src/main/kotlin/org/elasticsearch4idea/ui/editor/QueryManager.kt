@@ -23,25 +23,27 @@ import com.google.gson.JsonObject
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
+import com.intellij.ui.components.JBLoadingPanel
 import com.intellij.util.ui.UIUtil
 import org.apache.http.client.utils.URIBuilder
 import org.elasticsearch4idea.model.*
 import org.elasticsearch4idea.service.ElasticsearchManager
 import org.elasticsearch4idea.ui.editor.model.PageModel
-import org.elasticsearch4idea.ui.editor.views.ResultPanel
+import org.elasticsearch4idea.ui.editor.model.ResponseContext
 import org.elasticsearch4idea.utils.TaskUtils
 
 
 class QueryManager(
     private val project: Project,
     private val cluster: ElasticsearchCluster,
-    private val requestProvider: () -> Request,
-    private val resultPanel: ResultPanel
+    private val requestProvider: () -> Request
 ) {
-    private val responseListeners: MutableList<Listener<RequestAndResponse>> = mutableListOf()
+    private val responseListeners: MutableList<Listener<ResponseContext>> = mutableListOf()
     private lateinit var lastSearchRequest: Request
+    private lateinit var loadingPanel: JBLoadingPanel
 
-    fun addResponseListener(responseListener: Listener<RequestAndResponse>) {
+
+    fun addResponseListener(responseListener: Listener<ResponseContext>) {
         responseListeners.add(responseListener)
     }
 
@@ -50,7 +52,7 @@ class QueryManager(
         executeRequest(lastSearchRequest, false, { })
     }
 
-    fun updateAndExecuteLastSearchRequest(pageModel: PageModel, responseListener: Listener<RequestAndResponse>) {
+    fun updateAndExecuteLastSearchRequest(pageModel: PageModel, responseListener: Listener<ResponseContext>) {
         updateLastSearchRequest(pageModel)
         executeRequest(lastSearchRequest, false, responseListener)
     }
@@ -63,10 +65,10 @@ class QueryManager(
     private fun executeRequest(
         request: Request,
         isNewRequest: Boolean,
-        responseListener: Listener<RequestAndResponse>
+        responseListener: Listener<ResponseContext>
     ) {
         TaskUtils.runBackgroundTask("Executing request...") {
-            resultPanel.startLoading()
+            loadingPanel.startLoading()
             val elasticsearchManager = project.service<ElasticsearchManager>()
             val mappingRequestExecution = if (request.path.contains("_search")) {
                 lastSearchRequest = request
@@ -98,7 +100,7 @@ class QueryManager(
                 }
             )
                 .onSuccess {
-                    val requestAndResponse = RequestAndResponse(
+                    val requestAndResponse = ResponseContext(
                         isNewRequest,
                         request,
                         it.first.content,
@@ -116,7 +118,7 @@ class QueryManager(
                 }
                 .finally { _, _ ->
                     UIUtil.invokeLaterIfNeeded {
-                        resultPanel.stopLoading()
+                        loadingPanel.stopLoading()
                     }
                 }
         }
@@ -157,16 +159,7 @@ class QueryManager(
 
     fun executeCountForLastSearchRequest(totalListener: Listener<Long>) {
         val request = when (lastSearchRequest.method) {
-            Method.GET -> {
-                val uriBuilder = URIBuilder(lastSearchRequest.path)
-                val params = uriBuilder.queryParams.asSequence()
-                    .filter { COUNT_QUERY_PARAMS.contains(it.name) }
-                    .toList()
-                uriBuilder.setParameters(params)
-                lastSearchRequest.copy(
-                    path = uriBuilder.toString().replace("_search", "_count")
-                )
-            }
+            Method.GET,
             Method.POST -> {
                 val uriBuilder = URIBuilder(lastSearchRequest.path)
                 val params = uriBuilder.queryParams.asSequence()
@@ -203,6 +196,10 @@ class QueryManager(
         }
     }
 
+    fun setLoadingPanel(loadingPanel: JBLoadingPanel) {
+        this.loadingPanel = loadingPanel
+    }
+
     companion object {
         private val GSON_PRETTY = GsonBuilder().setPrettyPrinting().create()
         private val GSON = Gson()
@@ -222,17 +219,6 @@ class QueryManager(
             "routing",
             "terminate_after"
         )
-    }
-}
-
-class RequestAndResponse(
-    val isNewRequest: Boolean,
-    val request: Request,
-    val response: String,
-    val mappingResponse: String?
-) {
-    fun isSearchRequest(): Boolean {
-        return mappingResponse != null
     }
 }
 

@@ -19,7 +19,6 @@ import com.intellij.find.editorHeaderActions.Utils
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.*
 import com.intellij.openapi.actionSystem.impl.ActionToolbarImpl
-import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.keymap.KeymapUtil
 import com.intellij.openapi.project.DumbAwareAction
@@ -63,17 +62,9 @@ class ElasticsearchPanel(
     init {
         layout = BorderLayout()
         bodyPanel = BodyPanel(project)
-        resultPanel = ResultPanel(project, this)
-        queryManager = QueryManager(project, elasticsearchFile.cluster, this::getRequest, resultPanel)
-        queryManager.addResponseListener {
-            WriteCommandAction.runWriteCommandAction(project) {
-                UIUtil.invokeLaterIfNeeded {
-                    updateFromRequest(it.request)
-                    resultPanel.updateResult(it)
-                }
-            }
-        }
-        resultPanel.setQueryManager(queryManager)
+        queryManager = QueryManager(project, elasticsearchFile.cluster, this::getRequest)
+        resultPanel = ResultPanel(project, this, queryManager)
+
         initUrlComponent()
 
         bodyPanel.updateQueryView(elasticsearchFile.request.body)
@@ -165,7 +156,7 @@ class ElasticsearchPanel(
         globalSettings.settings.isVerticalOrientation = splitter.orientation
     }
 
-    private fun updateFromRequest(request: Request) {
+    fun updateFromRequest(request: Request) {
         urlField.text = request.path
         methodCombo.selectedItem = request.method
         bodyPanel.updateQueryView(request.body)
