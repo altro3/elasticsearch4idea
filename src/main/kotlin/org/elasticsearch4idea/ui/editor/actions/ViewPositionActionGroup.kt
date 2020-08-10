@@ -38,7 +38,7 @@ class ViewPositionActionGroup(private val elasticsearchPanel: ElasticsearchPanel
         private val isVertical: Boolean
     ) : ToggleOptionAction.Option {
 
-        override fun getName(): String? {
+        override fun getName(): String {
             return if (isVertical) "Vertically" else "Horizontally"
         }
 
