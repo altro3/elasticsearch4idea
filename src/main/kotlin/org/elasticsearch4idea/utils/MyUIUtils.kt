@@ -30,7 +30,15 @@ object MyUIUtils {
             Color(color.red - 16, color.green - 16, color.blue - 16)
         }
     }
-    
+
+    fun getTableGridColor(): Color {
+        val color = EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.INDENT_GUIDE_COLOR)
+        if (color != null) {
+            return color
+        }
+        return getPropertiesTableHeaderColor()
+    }
+
     fun getPropertiesTableHeaderColor(): Color {
         return if (EditorColorsManager.getInstance().isDarkEditor) {
             EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.GUTTER_BACKGROUND)!!.brighter()
@@ -40,7 +48,18 @@ object MyUIUtils {
     }
 
     fun getBottomPanelBackgroundColor(): Color {
-        return EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.GUTTER_BACKGROUND)
-            ?: getPropertiesTableHeaderColor()
+        return EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.GUTTER_BACKGROUND)!!
+    }
+
+    fun getSelectedLineColor(): Color {
+        return EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.CARET_ROW_COLOR)!!
+    }
+
+    fun getSelectedCellColor(): Color {
+        return EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.SELECTION_BACKGROUND_COLOR)!!
+    }
+
+    fun getEditorBackground(): Color {
+        return EditorColorsManager.getInstance().globalScheme.defaultBackground
     }
 }

@@ -23,11 +23,7 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.actionSystem.DefaultActionGroup
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
-import com.intellij.openapi.progress.ProgressIndicator
-import com.intellij.openapi.progress.ProgressManager
-import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.SimpleToolWindowPanel
 import com.intellij.openapi.ui.Splitter
@@ -36,6 +32,7 @@ import com.intellij.ui.AnimatedIcon
 import com.intellij.ui.PopupHandler
 import com.intellij.ui.ScrollPaneFactory
 import com.intellij.ui.TreeSpeedSearch
+import com.intellij.ui.components.JBLoadingPanel
 import com.intellij.ui.tree.AsyncTreeModel
 import com.intellij.ui.tree.StructureTreeModel
 import com.intellij.ui.treeStructure.Tree
@@ -56,6 +53,7 @@ import org.elasticsearch4idea.ui.explorer.table.ElasticsearchInfosTable
 import org.elasticsearch4idea.ui.explorer.tree.ClusterNodeDescriptor
 import org.elasticsearch4idea.ui.explorer.tree.ElasticsearchExplorerTreeStructure
 import org.elasticsearch4idea.ui.explorer.tree.IndexNodeDescriptor
+import org.elasticsearch4idea.utils.TaskUtils
 import java.awt.BorderLayout
 import java.awt.event.ActionEvent
 import java.awt.event.KeyEvent
@@ -71,35 +69,29 @@ class ElasticsearchExplorer(
 ) : SimpleToolWindowPanel(true, true), Disposable {
 
     private val tree: Tree
-    private val table: ElasticsearchInfosTable
+    private val table: ElasticsearchInfosTable = ElasticsearchInfosTable()
+    private val infoTablePanel: JBLoadingPanel = JBLoadingPanel(BorderLayout(), this, 100)
     private val elasticsearchManager = project.service<ElasticsearchManager>()
 
     init {
-        toolbar = createToolbarPanel()
-
-        table = ElasticsearchInfosTable()
-        val infosPanel = JPanel(BorderLayout())
-        infosPanel.add(ScrollPaneFactory.createScrollPane(table))
+        infoTablePanel.add(ScrollPaneFactory.createScrollPane(table))
 
         val treePanel = JPanel(BorderLayout())
         tree = createTree()
+        toolbar = createToolbarPanel()
         createTreePopupActions()
+        table.emptyText.text = TABLE_EMPTY_TEXT
 
         treePanel.add(ScrollPaneFactory.createScrollPane(tree))
 
         val splitter = Splitter(true, 0.6f)
         splitter.firstComponent = treePanel
-        splitter.secondComponent = infosPanel
+        splitter.secondComponent = infoTablePanel
         splitter.divider.background = UIUtil.getListBackground()
 
         setContent(splitter)
 
-        ProgressManager.getInstance()
-            .run(object : Task.Backgroundable(project, "Getting Elasticsearch cluster info", false) {
-                override fun run(indicator: ProgressIndicator) {
-                    elasticsearchManager.createAllClusters()
-                }
-            })
+        elasticsearchManager.createAllClusters()
     }
 
     private fun createTree(): Tree {
@@ -110,7 +102,7 @@ class ElasticsearchExplorer(
         tree.isRootVisible = false
         tree.showsRootHandles = true
         tree.cellRenderer = NodeRenderer()
-        tree.emptyText.clear()
+        tree.emptyText.text = "Add Elasticsearch cluster"
         tree.selectionModel.selectionMode = TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION
         tree.putClientProperty(AnimatedIcon.ANIMATION_IN_RENDERER_ALLOWED, true)
 
@@ -154,44 +146,44 @@ class ElasticsearchExplorer(
     }
 
     fun updateNodeInfo() {
-        ApplicationManager.getApplication().invokeLater {
-            table.updateInfos(emptyList())
-        }
         val cluster = this.getSelectedCluster()
         if (cluster != null && cluster.isLoaded()) {
-            ProgressManager.getInstance()
-                .run(object : Task.Backgroundable(project, "Getting Elasticsearch cluster info", false) {
-                    override fun run(indicator: ProgressIndicator) {
-                        val infos = elasticsearchManager.getClusterInfo(cluster)?.toTableEntryList()
-                        if (infos != null) {
-                            ApplicationManager.getApplication().invokeLater {
-                                table.updateInfos(infos)
-                            }
+            table.emptyText.text = ""
+            infoTablePanel.startLoading()
+            TaskUtils.runBackgroundTask("Getting Elasticsearch cluster info...") {
+                elasticsearchManager.prepareGetClusterInfo(cluster)
+                    .finally { clusterInfo, _ ->
+                        UIUtil.invokeLaterIfNeeded {
+                            infoTablePanel.stopLoading()
+                            table.updateInfos(clusterInfo?.toTableEntryList().orEmpty())
                         }
                     }
-                })
+            }
             return
         }
         val index = this.getSelectedIndex()
         if (index != null && index.cluster.isLoaded()) {
-            ProgressManager.getInstance()
-                .run(object : Task.Backgroundable(project, "Getting Elasticsearch index info", false) {
-                    override fun run(indicator: ProgressIndicator) {
-                        val infos = elasticsearchManager.getIndexInfo(index)?.toTableEntryList()
-                        if (infos != null) {
-                            ApplicationManager.getApplication().invokeLater {
-                                table.updateInfos(infos)
-                            }
+            table.emptyText.text = ""
+            infoTablePanel.startLoading()
+            TaskUtils.runBackgroundTask("Getting Elasticsearch index info...") {
+                elasticsearchManager.prepareGetIndexInfo(index)
+                    .finally { indexInfo, _ ->
+                        UIUtil.invokeLaterIfNeeded {
+                            infoTablePanel.stopLoading()
+                            table.updateInfos(indexInfo?.toTableEntryList().orEmpty())
                         }
                     }
-                })
+            }
             return
         }
+        table.updateInfos(emptyList())
+        table.emptyText.text = TABLE_EMPTY_TEXT
     }
 
     private fun createTreePopupActions() {
         val actionPopupGroup = DefaultActionGroup("ElasticsearchExplorerPopupGroup", true)
-        val requestIndexInfoProvider = { Request("/${getSelectedIndex()?.name}", "{}", Method.GET) }
+        val requestIndexInfoProvider =
+            { Request(path = "/${getSelectedIndex()?.name}", method = Method.GET) }
         actionPopupGroup.add(
             RunQueryAction(
                 this,
@@ -200,7 +192,9 @@ class ElasticsearchExplorer(
                 "Index Info"
             )
         )
-        val requestIndexStatsProvider = { Request("/${getSelectedIndex()?.name}/_stats", "{}", Method.GET) }
+        val requestIndexStatsProvider = {
+            Request(path = "/${getSelectedIndex()?.name}/_stats", method = Method.GET)
+        }
         actionPopupGroup.add(
             RunQueryAction(
                 this,
@@ -216,7 +210,7 @@ class ElasticsearchExplorer(
         actionPopupGroup.add(FlushIndexAction(this))
         actionPopupGroup.add(ForceMergeIndexAction(this))
         actionPopupGroup.addSeparator()
-        val requestInfo = Request("/", "{}", Method.GET)
+        val requestInfo = Request(path = "/", method = Method.GET)
         actionPopupGroup.add(
             RunQueryAction(
                 this,
@@ -225,7 +219,7 @@ class ElasticsearchExplorer(
                 "Info"
             )
         )
-        val requestStats = Request("/_stats", "{}", Method.GET)
+        val requestStats = Request(path = "/_stats", method = Method.GET)
         actionPopupGroup.add(
             RunQueryAction(
                 this,
@@ -234,7 +228,7 @@ class ElasticsearchExplorer(
                 "Indices Stats"
             )
         )
-        val requestNodesStats = Request("/_nodes/stats", "{}", Method.GET)
+        val requestNodesStats = Request(path = "/_nodes/stats", method = Method.GET)
         actionPopupGroup.add(
             RunQueryAction(
                 this,
@@ -243,7 +237,7 @@ class ElasticsearchExplorer(
                 "Nodes Stats"
             )
         )
-        val requestNodesInfo = Request("/_nodes", "{}", Method.GET)
+        val requestNodesInfo = Request(path = "/_nodes", method = Method.GET)
         actionPopupGroup.add(
             RunQueryAction(
                 this,
@@ -252,7 +246,7 @@ class ElasticsearchExplorer(
                 "Nodes Info"
             )
         )
-        val requestPlugins = Request("/_nodes/plugins", "{}", Method.GET)
+        val requestPlugins = Request(path = "/_nodes/plugins", method = Method.GET)
         actionPopupGroup.add(
             RunQueryAction(
                 this,
@@ -261,7 +255,7 @@ class ElasticsearchExplorer(
                 "Plugins"
             )
         )
-        val requestClusterState = Request("/_cluster/state", "{}", Method.GET)
+        val requestClusterState = Request(path = "/_cluster/state", method = Method.GET)
         actionPopupGroup.add(
             RunQueryAction(
                 this,
@@ -270,7 +264,7 @@ class ElasticsearchExplorer(
                 "Cluster State"
             )
         )
-        val requestClusterHealth = Request("/_cluster/health", "{}", Method.GET)
+        val requestClusterHealth = Request(path = "/_cluster/health", method = Method.GET)
         actionPopupGroup.add(
             RunQueryAction(
                 this,
@@ -279,7 +273,7 @@ class ElasticsearchExplorer(
                 "Cluster Health"
             )
         )
-        val requestTemplates = Request("/_template", "{}", Method.GET)
+        val requestTemplates = Request(path = "/_template", method = Method.GET)
         actionPopupGroup.add(
             RunQueryAction(
                 this,
@@ -301,28 +295,26 @@ class ElasticsearchExplorer(
         val index = getSelectedIndex()
         if (index != null) {
             val body = "{\n  \"from\": 0,\n  \"size\": 20,\n  \"query\": {\n    \"match_all\": {}\n  }\n}"
-            val request = Request("/${index.name}/_search", body, Method.POST)
-            openQueryEditor(index.cluster, request)
+            val request = Request(path = "/${index.name}/_search", body = body, method = Method.GET)
+            openQueryEditor(index.cluster, request, 0.3f)
             return
         }
         val cluster = getSelectedCluster()
         if (cluster != null) {
-            ProgressManager.getInstance()
-                .run(object : Task.Backgroundable(project, "Getting Elasticsearch cluster info", false) {
-                    override fun run(indicator: ProgressIndicator) {
-                        elasticsearchManager.fetchClusters(listOf(cluster.label))
-                    }
-                })
+            TaskUtils.runBackgroundTask("Getting Elasticsearch cluster info...") {
+                elasticsearchManager.prepareFetchCluster(cluster.label)
+            }
             return
         }
     }
 
-    fun openQueryEditor(cluster: ElasticsearchCluster, request: Request) {
+    fun openQueryEditor(cluster: ElasticsearchCluster, request: Request, bodyToResponseProportion: Float) {
         ElasticsearchFileSystem.instance?.openEditor(
             ElasticsearchFile(
                 project,
                 cluster,
-                request
+                request,
+                bodyToResponseProportion
             )
         )
     }
@@ -413,6 +405,10 @@ class ElasticsearchExplorer(
 
     fun removeSelectedCluster(selectedCluster: ElasticsearchCluster) {
         elasticsearchManager.removeCluster(selectedCluster.label)
+    }
+
+    companion object {
+        private const val TABLE_EMPTY_TEXT = "Nothing to show"
     }
 
 }

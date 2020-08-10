@@ -16,49 +16,38 @@
 
 package org.elasticsearch4idea.ui.editor.actions
 
-import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.ToggleOptionAction
-import com.intellij.openapi.components.service
 import com.intellij.openapi.project.DumbAware
-import com.intellij.openapi.project.Project
-import org.elasticsearch4idea.model.ViewMode
-import org.elasticsearch4idea.service.ElasticsearchConfiguration
+import icons.Icons
 import org.elasticsearch4idea.ui.editor.views.ElasticsearchPanel
+import javax.swing.Icon
 
-class ViewAsActionGroup(
-    private val elasticsearchPanel: ElasticsearchPanel,
-    project: Project
-) : DefaultActionGroup("Auto-refresh clusters", true), DumbAware {
-
-    private val elasticsearchConfiguration = project.service<ElasticsearchConfiguration>()
+class ViewPositionActionGroup(private val elasticsearchPanel: ElasticsearchPanel) :
+    DefaultActionGroup("View position", true),
+    DumbAware {
 
     init {
-        templatePresentation.icon = AllIcons.Actions.Show
-        templatePresentation.text = "View as"
-        ViewMode.values().forEach {
-            add(Action(Option(it)))
-        }
+        add(Action(Option(true), Icons.VERTICAL_VIEW))
+        add(Action(Option(false), Icons.HORIZONTAL_VIEW))
     }
 
-    class Action(option: Option) : ToggleOptionAction(option), DumbAware
+    class Action(option: Option, icon: Icon) : ToggleOptionAction(option, icon), DumbAware
 
     inner class Option(
-        private val option: ViewMode
+        private val isVertical: Boolean
     ) : ToggleOptionAction.Option {
 
-        override fun getName(): String {
-            return option.text
+        override fun getName(): String? {
+            return if (isVertical) "Vertically" else "Horizontally"
         }
 
         override fun setSelected(selected: Boolean) {
-            this@ViewAsActionGroup.elasticsearchConfiguration.viewMode = option
-            elasticsearchPanel.setViewMode(option)
+            elasticsearchPanel.setOrientation(isVertical)
         }
 
         override fun isSelected(): Boolean {
-            return this@ViewAsActionGroup.elasticsearchConfiguration.viewMode == option
+            return elasticsearchPanel.isVerticalOrientation() == isVertical
         }
-
     }
 }

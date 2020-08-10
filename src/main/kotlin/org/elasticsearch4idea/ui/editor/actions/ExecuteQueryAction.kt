@@ -18,15 +18,18 @@ package org.elasticsearch4idea.ui.editor.actions
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.DumbAwareAction
+import org.elasticsearch4idea.ui.editor.QueryManager
 import org.elasticsearch4idea.ui.editor.views.ElasticsearchPanel
 import java.awt.event.InputEvent
 import java.awt.event.KeyEvent
 
-class ExecuteQueryAction(private val elasticsearchPanel: ElasticsearchPanel) :
-    DumbAwareAction("Execute query", "Execute query", AllIcons.Actions.Execute) {
+class ExecuteQueryAction(
+    private val queryManager: QueryManager,
+    elasticsearchPanel: ElasticsearchPanel
+) : DumbAwareAction("Execute query", "Execute query", AllIcons.Actions.Execute) {
 
     override fun actionPerformed(anActionEvent: AnActionEvent) {
-        elasticsearchPanel.executeQuery()
+        queryManager.executeRequest()
     }
 
     override fun update(event: AnActionEvent) {

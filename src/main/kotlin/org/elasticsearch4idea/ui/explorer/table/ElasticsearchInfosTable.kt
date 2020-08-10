@@ -17,13 +17,17 @@ package org.elasticsearch4idea.ui.explorer.table
 
 import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.openapi.editor.colors.EditorFontType
+import com.intellij.ui.JBColor
 import com.intellij.ui.table.TableView
 import com.intellij.util.ui.ColumnInfo
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.ListTableModel
 import org.elasticsearch4idea.utils.MyUIUtils
 import java.awt.Font
+import java.awt.event.FocusAdapter
+import java.awt.event.FocusEvent
 import javax.swing.table.JTableHeader
+
 
 class ElasticsearchInfosTable internal constructor() : TableView<TableEntry>(
     ListTableModel(
@@ -35,12 +39,18 @@ class ElasticsearchInfosTable internal constructor() : TableView<TableEntry>(
     init {
         val font: Font = EditorColorsManager.getInstance().globalScheme.getFont(EditorFontType.PLAIN)
         setFont(font)
+        gridColor = MyUIUtils.getTableGridColor()
+        addFocusListener(object : FocusAdapter() {
+            override fun focusLost(e: FocusEvent) {
+                clearSelection()
+            }
+        })
     }
 
     override fun getTableHeader(): JTableHeader {
         val header = super.getTableHeader()
         header.background = MyUIUtils.getPropertiesTableHeaderColor()
-        header.border = JBUI.Borders.customLine(JBUI.CurrentTheme.ToolWindow.borderColor(), 1, 0, 0, 0)
+        header.border = JBUI.Borders.customLine(JBColor.border(), 1, 0, 0, 0)
         return header
     }
 

@@ -16,10 +16,13 @@
 
 package org.elasticsearch4idea.model
 
-enum class Method {
-    GET,
-    POST,
-    PUT,
-    HEAD,
-    DELETE
+enum class Method(
+    val hasBody: Boolean
+) {
+    GET(true),
+    POST(true),
+    PUT(true),
+    HEAD(false),
+    DELETE(false);
+
 }

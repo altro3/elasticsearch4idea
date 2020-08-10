@@ -18,14 +18,12 @@ package org.elasticsearch4idea.ui.explorer.actions
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.components.service
-import com.intellij.openapi.progress.ProgressIndicator
-import com.intellij.openapi.progress.ProgressManager
-import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.DumbAwareAction
 import org.elasticsearch4idea.service.ElasticsearchConfiguration
 import org.elasticsearch4idea.service.ElasticsearchManager
 import org.elasticsearch4idea.ui.explorer.ElasticsearchExplorer
 import org.elasticsearch4idea.ui.explorer.dialogs.ClusterConfigurationDialog
+import org.elasticsearch4idea.utils.TaskUtils
 import java.awt.Toolkit
 import java.awt.event.KeyEvent
 
@@ -59,13 +57,10 @@ class EditClusterAction(private val elasticsearchExplorer: ElasticsearchExplorer
         }
         val clusterConfiguration = dialog.getConfiguration()
         val manager = project.service<ElasticsearchManager>()
-        
-        ProgressManager.getInstance()
-            .run(object : Task.Backgroundable(project, "Getting Elasticsearch cluster info", false) {
-                override fun run(indicator: ProgressIndicator) {
-                    manager.changeCluster(cluster.label, clusterConfiguration)
-                }
-            })
+
+        TaskUtils.runBackgroundTask("Getting Elasticsearch cluster info...") {
+            manager.prepareChangeCluster(cluster.label, clusterConfiguration)
+        }
     }
 
     override fun update(event: AnActionEvent) {

@@ -1,5 +1,21 @@
 Change Log
 ----------
+## Version 0.2.0
+- Support horizontal request/response view
+- Improve table appearance
+- Support pagination
+- Show field types in table header 
+- Support request cancelling
+- Support GET with body
+- Show loading spinner when request is executing
+- Other small fixes and improvements
+
+
+## Version 0.1.9
+- \#5 Fix incorrect displaying Chinese symbols in table view
+- Encode request body with UTF-8 instead of ISO 8859-1
+- Fix error "Wrong line separators: '\r\n'" on Windows 
+
 
 ## Version 0.1.9
 - \#5 Fix incorrect displaying Chinese symbols in table view

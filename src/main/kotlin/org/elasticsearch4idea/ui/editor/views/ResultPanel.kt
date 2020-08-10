@@ -15,112 +15,101 @@
  */
 package org.elasticsearch4idea.ui.editor.views
 
-import com.intellij.json.JsonFileType
-import com.intellij.lang.Language
 import com.intellij.openapi.Disposable
-import com.intellij.openapi.editor.Document
-import com.intellij.openapi.editor.Editor
-import com.intellij.openapi.editor.EditorFactory
-import com.intellij.openapi.editor.colors.EditorColors
-import com.intellij.openapi.editor.colors.EditorColorsManager
-import com.intellij.openapi.editor.ex.EditorEx
-import com.intellij.openapi.editor.ex.util.LexerEditorHighlighter
-import com.intellij.openapi.fileEditor.FileDocumentManager
-import com.intellij.openapi.fileTypes.SyntaxHighlighterFactory
+import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
-import com.intellij.psi.PsiDocumentManager
-import com.intellij.psi.PsiFile
-import com.intellij.psi.codeStyle.CodeStyleManager
-import com.intellij.testFramework.LightVirtualFile
-import com.intellij.ui.components.JBLabel
-import com.intellij.ui.components.JBScrollPane
-import com.intellij.util.ui.JBUI
+import com.intellij.ui.JBCardLayout
+import com.intellij.ui.components.JBLoadingPanel
+import com.intellij.util.ui.UIUtil
 import org.elasticsearch4idea.model.ViewMode
-import org.elasticsearch4idea.utils.MyUIUtils
+import org.elasticsearch4idea.service.GlobalSettings
+import org.elasticsearch4idea.ui.editor.QueryManager
+import org.elasticsearch4idea.ui.editor.model.PageModel
+import org.elasticsearch4idea.ui.editor.model.ResponseContext
 import java.awt.BorderLayout
 import javax.swing.JPanel
 
 class ResultPanel(
     private val project: Project,
-    private var currentViewMode: ViewMode
-) : JPanel(), Disposable {
-    private val editor: Editor
-    private val editorDocument: Document
-    private val psiFile: PsiFile
+    private val elasticsearchPanel: ElasticsearchPanel,
+    queryManager: QueryManager
+) : JBLoadingPanel(BorderLayout(), elasticsearchPanel, 100), Disposable {
+    private var jsonResultPanel: JsonResultPanel? = null
+    private var tableResultPanel: TableResultPanel? = null
+    private val cardLayout: JBCardLayout = JBCardLayout()
+    private val mainPanel: JPanel
+    private val globalSettings = service<GlobalSettings>()
+    private val pageModel = PageModel(0, 20, 0, 0)
+    private val paginationPanel: JPanel
 
     init {
-        val file = LightVirtualFile("result.json", JsonFileType.INSTANCE, "")
-        editorDocument = FileDocumentManager.getInstance().getDocument(file)!!
-        psiFile = PsiDocumentManager.getInstance(project).getPsiFile(editorDocument)!!
+        mainPanel = JPanel(cardLayout)
+        add(mainPanel, BorderLayout.CENTER)
+        paginationPanel = PaginationPanel(elasticsearchPanel, queryManager, pageModel)
+        add(paginationPanel, BorderLayout.SOUTH)
 
-        editor = createEditor()
-        layout = BorderLayout()
-    }
-
-    fun setCurrentViewMode(viewMode: ViewMode) {
-        currentViewMode = viewMode
-    }
-
-    fun getCurrentViewMode(): ViewMode {
-        return currentViewMode
-    }
-
-    fun updateResult(result: String) {
-        invalidate()
-        removeAll()
-
-        when (currentViewMode) {
-            ViewMode.TEXT -> {
-                add(editor.component, BorderLayout.CENTER)
-                updateEditorText(result)
-            }
-            ViewMode.TABLE -> {
-                val table = ResultTable.createResultTable(result)
-                if (table == null) {
-                    add(editor.component, BorderLayout.CENTER)
-                    updateEditorText(result)
-                } else {
-                    val panel = JPanel(BorderLayout())
-                    panel.background = EditorColorsManager.getInstance().globalScheme.defaultBackground
-                    
-                    val scrollPane = JBScrollPane(table)
-                    scrollPane.border = JBUI.Borders.empty()
-                    panel.add(scrollPane, BorderLayout.CENTER)
-                    
-                    val labelPanel = JPanel(BorderLayout())
-                    labelPanel.add(JBLabel("  " + table.label), BorderLayout.CENTER)
-                    val borderColor =
-                        EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.BORDER_LINES_COLOR)
-                    labelPanel.border = JBUI.Borders.customLine(borderColor, 1, 0, 0, 0)
-                    labelPanel.background = MyUIUtils.getBottomPanelBackgroundColor()
-                    panel.add(labelPanel, BorderLayout.SOUTH)
-                    add(panel)
+        queryManager.addResponseListener {
+            WriteCommandAction.runWriteCommandAction(project) {
+                UIUtil.invokeLaterIfNeeded {
+                    elasticsearchPanel.updateFromRequest(it.request)
+                    updateResult(it)
                 }
             }
         }
-        validate()
+        queryManager.setLoadingPanel(this)
     }
 
-    private fun createEditor(): Editor {
-        val editor = EditorFactory.getInstance()
-            .createEditor(editorDocument, project, JsonFileType.INSTANCE, true) as EditorEx
-        editor.settings.isRightMarginShown = false
-        val language = Language.findLanguageByID("JSON")!!
-        val highlighter = LexerEditorHighlighter(
-            SyntaxHighlighterFactory.getSyntaxHighlighter(language, null, null),
-            editor.colorsScheme
-        )
-        editor.highlighter = highlighter
-        return editor
+    fun setCurrentViewMode(viewMode: ViewMode) {
+        globalSettings.settings.viewMode = viewMode
     }
 
-    private fun updateEditorText(text: String) {
-        editorDocument.setText(text)
-        PsiDocumentManager.getInstance(project).commitDocument(editorDocument)
-        CodeStyleManager.getInstance(project).reformatText(psiFile, 0, psiFile.textRange.endOffset)
+    fun getCurrentViewMode(): ViewMode {
+        return globalSettings.settings.viewMode
+    }
+
+    private fun updateResult(responseContext: ResponseContext) {
+        updateView(getCurrentViewMode(), responseContext)
+    }
+
+    private fun updateView(viewMode: ViewMode, responseContext: ResponseContext) {
+        when (viewMode) {
+            ViewMode.TEXT -> {
+                if (jsonResultPanel == null) {
+                    jsonResultPanel = JsonResultPanel(project)
+                    mainPanel.add(jsonResultPanel!!, "jsonResultPanel")
+                }
+                if (responseContext.isValidSearchRequest()) {
+                    paginationPanel.isVisible = true
+                    pageModel.update(responseContext)
+                } else {
+                    paginationPanel.isVisible = false
+                }
+                jsonResultPanel?.updateEditorText(responseContext)
+                cardLayout.show(mainPanel, "jsonResultPanel")
+            }
+            ViewMode.TABLE -> {
+                if (tableResultPanel == null) {
+                    tableResultPanel = TableResultPanel()
+                    mainPanel.add(tableResultPanel!!, "tableResultPanel")
+                }
+                if (tableResultPanel?.updateResultTable(responseContext) == false) {
+                    updateView(ViewMode.TEXT, responseContext)
+                    return
+                }
+                if (responseContext.isValidSearchRequest()) {
+                    paginationPanel.isVisible = true
+                    pageModel.update(responseContext)
+                } else {
+                    paginationPanel.isVisible = false
+                }
+                cardLayout.show(mainPanel, "tableResultPanel")
+            }
+        }
     }
 
     override fun dispose() {
-        EditorFactory.getInstance().releaseEditor(editor)
+        jsonResultPanel?.dispose()
     }
+
 }

@@ -20,6 +20,7 @@ import org.apache.http.HttpHost
 import java.util.*
 
 class ClusterConfiguration(
+    val id: String,
     val label: String,
     val url: String,
     val credentials: Credentials?,
@@ -45,5 +46,5 @@ class ClusterConfiguration(
         val trustStorePassword: String?,
         val keyStorePassword: String?
     )
-    
+
 }

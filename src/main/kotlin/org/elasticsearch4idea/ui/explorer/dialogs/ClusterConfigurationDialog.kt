@@ -18,12 +18,10 @@ package org.elasticsearch4idea.ui.explorer.dialogs
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.fileChooser.PathChooserDialog
-import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogPanel
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.ValidationInfo
-import com.intellij.openapi.util.Ref
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTabbedPane
@@ -34,9 +32,10 @@ import org.elasticsearch4idea.model.ClusterConfiguration
 import org.elasticsearch4idea.service.ElasticsearchConfiguration
 import org.elasticsearch4idea.service.ElasticsearchManager
 import org.elasticsearch4idea.ui.explorer.ElasticsearchExplorer
+import org.elasticsearch4idea.utils.TaskUtils
 import org.elasticsearch4idea.utils.addTabbedPane
 import java.awt.Dimension
-import java.awt.event.ActionEvent
+import java.util.*
 import javax.swing.JPasswordField
 import javax.swing.JTextField
 
@@ -59,6 +58,7 @@ class ClusterConfigurationDialog(
     private val generalPanel: DialogPanel
     private val sslPanel: DialogPanel
 
+    private val previousId = if (editing) previousConfiguration?.id else null
     private val previousName = if (editing) previousConfiguration?.label else null
     private val previousCredentialsStored = if (editing) previousConfiguration?.credentialsStored ?: false else false
     private val previousSslConfigStored = if (editing) previousConfiguration?.sslConfigStored ?: false else false
@@ -99,7 +99,7 @@ class ClusterConfigurationDialog(
         }
         row {
             button("Test Connection", CCFlags.push) {
-                testConnection(it)
+                testConnection()
             }
         }
         row {
@@ -174,27 +174,18 @@ class ClusterConfigurationDialog(
 
     override fun createCenterPanel() = dialogPanel
 
-    private fun testConnection(event: ActionEvent) {
-        val excRef = Ref<Exception>()
-        val progressManager = ProgressManager.getInstance()
-        progressManager.runProcessWithProgressSynchronously({
-            val progressIndicator = progressManager.progressIndicator
-            if (progressIndicator != null) {
-                progressIndicator.text = "Connecting to Elasticsearch cluster..."
-            }
+    private fun testConnection() {
+        TaskUtils.runBackgroundTask("Connecting to Elasticsearch cluster...") {
             generalPanel.apply()
             sslPanel.apply()
-            try {
-                elasticsearchManager.testConnection(getConfiguration())
-            } catch (ex: Exception) {
-                excRef.set(ex)
-            }
-        }, "Testing Connection", true, null)
-        if (!excRef.isNull) {
-            val errorMessage = excRef.get().message
-            setErrorMessage("Connection test failed" + if (errorMessage.isNullOrBlank()) "" else ": $errorMessage")
-        } else {
-            setSuccessMessage("Connection test successful")
+            elasticsearchManager.prepareTestConnection(getConfiguration())
+                .onError {
+                    val errorMessage = it.message
+                    setErrorMessage("Connection test failed" + if (errorMessage.isNullOrBlank()) "" else ": $errorMessage")
+                }
+                .onSuccess {
+                    setSuccessMessage("Connection test successful")
+                }
         }
     }
 
@@ -243,6 +234,7 @@ class ClusterConfigurationDialog(
 
     fun getConfiguration(): ClusterConfiguration {
         return ClusterConfiguration(
+            id = if (previousId.isNullOrEmpty()) UUID.randomUUID().toString() else previousId,
             label = name,
             url = url,
             credentials = getCredentials(),

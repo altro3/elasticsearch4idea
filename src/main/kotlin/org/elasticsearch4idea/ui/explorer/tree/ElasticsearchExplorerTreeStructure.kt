@@ -65,8 +65,7 @@ class ElasticsearchExplorerTreeStructure(project: Project) : AbstractTreeStructu
     override fun getChildElements(element: Any): Array<Any> {
         if (element === RootNodeDescriptor.ROOT) {
             val clusters = elasticsearchManager.getClusters()
-            return if (clusters.isEmpty()) arrayOf("Add Elasticsearch cluster") else clusters.sortedBy { it.label }
-                .toTypedArray()
+            return clusters.sortedBy { it.label }.toTypedArray()
         }
         if (element is ElasticsearchCluster) {
             val indices: List<ElasticsearchIndex> = element.indices.sortedBy { it.name }

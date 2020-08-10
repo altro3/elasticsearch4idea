@@ -16,8 +16,13 @@
 
 package org.elasticsearch4idea.model
 
-class Request(
-    val urlPath: String,
+data class Request(
+    val host: String? = null,
+    val path: String,
     val body: String = "",
     val method: Method
-)
+) {
+    fun getUrl(): String {
+        return "${host!!}/${path}"
+    }
+}

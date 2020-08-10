@@ -22,14 +22,13 @@ import com.intellij.openapi.project.DumbAwareAction
 import org.elasticsearch4idea.service.ElasticsearchManager
 import org.elasticsearch4idea.ui.explorer.ElasticsearchExplorer
 import org.elasticsearch4idea.ui.explorer.dialogs.CreateAliasDialog
+import org.elasticsearch4idea.utils.TaskUtils
 
 class CreateAliasAction(private val elasticsearchExplorer: ElasticsearchExplorer) :
     DumbAwareAction("New alias...", "Create alias", null) {
 
     override fun actionPerformed(event: AnActionEvent) {
         val index = elasticsearchExplorer.getSelectedIndex() ?: return
-        val project = event.project!!
-
         val dialog = CreateAliasDialog(elasticsearchExplorer)
 
         dialog.show()
@@ -37,9 +36,13 @@ class CreateAliasAction(private val elasticsearchExplorer: ElasticsearchExplorer
             return
         }
 
-        val elasticsearchManager = project.service<ElasticsearchManager>()
-        elasticsearchManager.createAlias(index, dialog.alias)
-        elasticsearchExplorer.updateNodeInfo()
+        TaskUtils.runBackgroundTask("Creating alias...") {
+            val elasticsearchManager = event.project!!.service<ElasticsearchManager>()
+            elasticsearchManager.prepareCreateAlias(index, dialog.alias)
+                .onSuccess {
+                    elasticsearchExplorer.updateNodeInfo()
+                }
+        }
     }
 
     override fun update(event: AnActionEvent) {

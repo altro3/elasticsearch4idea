@@ -28,6 +28,7 @@ import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileTypes.SyntaxHighlighterFactory
 import com.intellij.openapi.project.Project
 import com.intellij.testFramework.LightVirtualFile
+import com.intellij.ui.JBColor
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import javax.swing.JPanel
@@ -45,7 +46,7 @@ class BodyPanel(
 
         layout = BorderLayout()
         add(editor.component, BorderLayout.CENTER)
-        border = JBUI.Borders.customLine(JBUI.CurrentTheme.ToolWindow.borderColor(), 0, 0, 1, 0)
+        border = JBUI.Borders.customLine(JBColor.border(), 0, 0, 1, 0)
     }
 
     private fun createEditor(): Editor {

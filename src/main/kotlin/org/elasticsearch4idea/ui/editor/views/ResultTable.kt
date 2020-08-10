@@ -16,24 +16,29 @@
 
 package org.elasticsearch4idea.ui.editor.views
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.node.ArrayNode
-import com.fasterxml.jackson.databind.node.ObjectNode
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import com.google.common.collect.ArrayListMultimap
-import com.intellij.openapi.editor.colors.EditorColors
 import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.openapi.editor.colors.EditorFontType
+import com.intellij.ui.JBColor
 import com.intellij.ui.table.TableView
 import com.intellij.util.ui.ColumnInfo
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.ListTableModel
+import org.elasticsearch4idea.ui.editor.model.Hit
+import org.elasticsearch4idea.ui.editor.model.Mapping
+import org.elasticsearch4idea.ui.editor.model.MappingNode
+import org.elasticsearch4idea.ui.editor.model.ResponseContext
+import org.elasticsearch4idea.ui.editor.table.NumberColumnCellRenderer
+import org.elasticsearch4idea.ui.editor.table.ResultTableCellRenderer
+import org.elasticsearch4idea.ui.editor.table.ResultTableHeaderRenderer
 import org.elasticsearch4idea.utils.MyUIUtils
+import org.elasticsearch4idea.utils.TableColumnModelListenerAdapter
 import java.awt.Component
 import java.awt.Font
-import java.util.*
+import java.awt.event.FocusAdapter
+import java.awt.event.FocusEvent
 import javax.swing.JTable
+import javax.swing.event.ListSelectionEvent
 import javax.swing.table.TableCellRenderer
 import javax.swing.table.TableColumn
 import kotlin.math.max
@@ -41,28 +46,39 @@ import kotlin.math.min
 
 
 class ResultTable internal constructor(
-    columns: Array<ResultTableColumnInfo>,
-    entries: List<ResultTableEntry>,
-    val label: String
-) : TableView<ResultTable.ResultTableEntry>(ListTableModel(columns, entries)) {
+    listTableModel: ListTableModel<ResultTableEntry>
+) : TableView<ResultTable.ResultTableEntry>(listTableModel) {
 
     init {
         setAutoResizeMode(JTable.AUTO_RESIZE_OFF)
         setCellSelectionEnabled(true)
+        emptyText.text = ""
 
         val colorsScheme = EditorColorsManager.getInstance().globalScheme
         val font: Font = colorsScheme.getFont(EditorFontType.PLAIN)
         setFont(font)
+        getTableHeader().defaultRenderer = ResultTableHeaderRenderer()
         getTableHeader().font = font
         getTableHeader().background = MyUIUtils.getResultTableHeaderColor()
-        getTableHeader().foreground = EditorColorsManager.getInstance().globalScheme.defaultForeground
-        getTableHeader().border = JBUI.Borders.customLine(JBUI.CurrentTheme.ToolWindow.borderColor(), 1, 0, 0, 0)
+        getTableHeader().foreground = colorsScheme.defaultForeground
+        getTableHeader().border = JBUI.Borders.customLine(JBColor.border(), 1, 0, 0, 0)
+        gridColor = MyUIUtils.getTableGridColor()
+        selectionForeground = null
+        columnModel.addColumnModelListener(object : TableColumnModelListenerAdapter() {
 
-        setSelectionForeground(foreground)
-        colorsScheme.getColor(EditorColors.SELECTION_BACKGROUND_COLOR)?.let { setSelectionBackground(it) }
-        background = EditorColorsManager.getInstance().globalScheme.defaultBackground
-        foreground = EditorColorsManager.getInstance().globalScheme.defaultForeground
-
+            override fun columnSelectionChanged(e: ListSelectionEvent?) {
+                if (e == null) {
+                    return
+                }
+                getTableHeader().repaint(getTableHeader().getHeaderRect(e.firstIndex))
+                getTableHeader().repaint(getTableHeader().getHeaderRect(e.lastIndex))
+            }
+        })
+        addFocusListener(object : FocusAdapter() {
+            override fun focusLost(e: FocusEvent) {
+                clearSelection()
+            }
+        })
         adjustColumnsBySize()
     }
 
@@ -88,114 +104,118 @@ class ResultTable internal constructor(
         }
     }
 
+    fun updateTable(responseContext: ResponseContext) {
+        val listTableModel = createListTableModel(responseContext)
+        setModelAndUpdateColumns(listTableModel)
+        adjustColumnsBySize()
+    }
+
     companion object {
 
-        private val objectMapper = jacksonObjectMapper()
+        fun createResultTable(responseContext: ResponseContext): ResultTable {
+            return ResultTable(createListTableModel(responseContext))
+        }
 
-        fun createResultTable(result: String): ResultTable? {
-            return try {
-                val rootNode: JsonNode = objectMapper.readValue(result)
-                val hits = rootNode.get("hits") ?: return null
-                val totalShards = rootNode.get("_shards")?.get("total")?.asInt() ?: 0
-                val successfulShards = rootNode.get("_shards")?.get("successful")?.asInt() ?: 0
-                val took = (rootNode.get("took")?.asInt() ?: 0) / 1000f
-                val tookString = String.format("%.3f", took)
-                val totalNode = hits.get("total")
-                val total = when {
-                    totalNode.isInt -> {
-                        totalNode.asLong()
-                    }
-                    totalNode.isObject -> {
-                        totalNode.get("value").asLong()
-                    }
-                    else -> {
-                        0
-                    }
+        private fun createListTableModel(responseContext: ResponseContext): ListTableModel<ResultTableEntry> {
+            val entries = createTableEntries(responseContext)
+            val columns = createColumns(responseContext.getMappings(), entries)
+            return ListTableModel(columns.toTypedArray(), entries)
+        }
+
+        private fun createTableEntries(responseContext: ResponseContext): List<ResultTableEntry> {
+            return responseContext.getHits().asIterable().asSequence()
+                .mapIndexed { index, hit -> ResultTableEntry(index + responseContext.getFrom() + 1, hit) }
+                .toList()
+        }
+
+        private fun createColumns(
+            mappings: List<Mapping>,
+            entries: List<ResultTableEntry>
+        ): List<ColumnInfo<ResultTableEntry, *>> {
+            val columns = mutableListOf<ColumnInfo<ResultTableEntry, *>>()
+            columns.add(NumbersColumnInfo())
+            columns.add(ResultTableColumnInfo("_index", null, Hit::index))
+            columns.add(ResultTableColumnInfo("_type", null, Hit::type))
+            columns.add(ResultTableColumnInfo("_id", null, Hit::id))
+            columns.add(ResultTableColumnInfo("_score", null, Hit::score))
+            val columnNames = ArrayListMultimap.create<String, Pair<Mapping, MappingNode>>()
+            mappings.forEach { mapping ->
+                mapping.nodes.forEach {
+                    collectColumns(it.key, it.value, mapping, columnNames)
                 }
-                val entries = (hits.get("hits") as ArrayNode).asIterable().asSequence()
-                    .map { convertHit(it as ObjectNode) }
-                    .toList()
-
-                val columns = entries.asSequence()
-                    .flatMap { it.values.keys.asSequence() }
-                    .distinct()
-                    .sorted()
-                    .map {
-                        ResultTableColumnInfo(
-                            it
-                        )
-                    }
-                    .toList()
-
-                val label = "Searched $successfulShards of $totalShards shards, $total hits, $tookString seconds."
-
-                ResultTable(
-                    columns.toTypedArray(),
-                    entries,
-                    label
-                )
-            } catch (e: Exception) {
-                null
             }
+            columnNames.asMap().forEach { (key, collection) ->
+                val hasValue = entries.any { it.hit.values.contains(key) }
+                if (hasValue) {
+                    columns.add(ResultTableColumnInfo(key, collection) {
+                        it.values[key]
+                    })
+                }
+            }
+            return columns
         }
 
-        private fun convertHit(hit: ObjectNode): ResultTableEntry {
-            val propertiesMultiMap = ArrayListMultimap.create<String, String>()
-            hit.fields()
-                .forEach {
-                    collectValues(
-                        it.key,
-                        it.value,
-                        propertiesMultiMap
-                    )
-                }
-            val propertiesMap = propertiesMultiMap.asMap().asSequence()
-                .map {
-                    if (it.key.startsWith("_source")) {
-                        it.key.replaceFirst("_source.", "") to it.value
-                    } else {
-                        it.key to it.value
-                    }
-                }
-                .toMap()
-            return ResultTableEntry(propertiesMap)
-        }
-
-        private fun collectValues(key: String, jsonNode: JsonNode, values: ArrayListMultimap<String, String>) {
-            if (jsonNode.isValueNode) {
-                values.put(key, jsonNode.asText())
-            } else if (jsonNode.isArray) {
-                val items = StringJoiner(", ", "[", "]")
-                for (item: JsonNode in (jsonNode as ArrayNode).asIterable()) {
-                    if (item.isValueNode) {
-                        items.add(item.asText())
-                    } else if (item.isObject) {
-                        collectValues(
-                            key,
-                            item,
-                            values
-                        )
-                    }
-                }
-                if (items.length() > 2) {
-                    values.put(key, items.toString())
-                }
-            } else if (jsonNode.isObject) {
-                (jsonNode as ObjectNode).fields().forEach {
-                    collectValues(
-                        key + "." + it.key,
-                        it.value,
-                        values
-                    )
+        private fun collectColumns(
+            field: String,
+            node: MappingNode,
+            mapping: Mapping,
+            columns: ArrayListMultimap<String, Pair<Mapping, MappingNode>>
+        ) {
+            if (node.children.isNullOrEmpty()) {
+                columns.put(field, Pair(mapping, node))
+            } else {
+                node.children.forEach {
+                    collectColumns("$field.${it.key}", it.value, mapping, columns)
                 }
             }
         }
     }
 
-    class ResultTableColumnInfo(name: String) : ColumnInfo<ResultTableEntry, String>(name) {
+    class ResultTableColumnInfo(
+        name: String,
+        private val mappingNodes: Collection<Pair<Mapping, MappingNode>>?,
+        private val valueExtractor: (Hit) -> Any?
+    ) : ColumnInfo<ResultTableEntry, Any?>(name) {
 
-        override fun valueOf(item: ResultTableEntry?): String? {
-            return item?.values?.get(name)?.joinToString(", ")
+        override fun valueOf(item: ResultTableEntry): Any? {
+            return valueExtractor.invoke(item.hit)
+        }
+
+        override fun getRenderer(item: ResultTableEntry): TableCellRenderer {
+            return ResultTableCellRenderer.instance
+        }
+
+        override fun getTooltipText(): String? {
+            if (mappingNodes.isNullOrEmpty()) {
+                return "<html><b>$name</b></html>"
+            } else {
+                val indexesByType = mappingNodes.asSequence()
+                    .filterNot { it.second.type == null }
+                    .groupBy({ it.second.type!! }, { it.first.index })
+                if (mappingNodes.size == 1 || indexesByType.size == 1) {
+                    return "<html><b>$name</b>: ${mappingNodes.first().second.type}</html>"
+                }
+                val stringBuilder = StringBuilder()
+                stringBuilder.append("<html>")
+                stringBuilder.append("<b>$name</b><br>")
+                indexesByType.forEach {
+                    val indexes = it.value.asSequence().joinToString()
+                    stringBuilder.append("($indexes): ${it.key}<br>")
+                }
+                stringBuilder.append("</html>")
+                return stringBuilder.toString()
+            }
+        }
+    }
+
+    class NumbersColumnInfo : ColumnInfo<ResultTableEntry, Any?>("") {
+
+        override fun valueOf(item: ResultTableEntry): Any? {
+            return item.number
+        }
+
+        override fun getRenderer(item: ResultTableEntry): TableCellRenderer {
+            return NumberColumnCellRenderer.instance
         }
 
         override fun getRenderer(item: ResultTableEntry?): TableCellRenderer? {
@@ -203,6 +223,9 @@ class ResultTable internal constructor(
         }
     }
 
-    class ResultTableEntry(val values: Map<String, Collection<String>>)
+    class ResultTableEntry(
+        val number: Long,
+        val hit: Hit
+    )
 
 }

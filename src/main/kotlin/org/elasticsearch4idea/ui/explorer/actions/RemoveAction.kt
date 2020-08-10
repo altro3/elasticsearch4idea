@@ -22,6 +22,7 @@ import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.ui.Messages
 import org.elasticsearch4idea.service.ElasticsearchManager
 import org.elasticsearch4idea.ui.explorer.ElasticsearchExplorer
+import org.elasticsearch4idea.utils.TaskUtils
 
 class RemoveAction(
     private val elasticsearchExplorer: ElasticsearchExplorer
@@ -53,8 +54,10 @@ class RemoveAction(
                 Messages.getQuestionIcon()
             )
             if (result?.toUpperCase() == "DELETE") {
-                val elasticsearchManager = event.project?.service<ElasticsearchManager>()
-                elasticsearchManager?.deleteIndex(selectedIndex)
+                TaskUtils.runBackgroundTask("Deleting index...") {
+                    val elasticsearchManager = event.project!!.service<ElasticsearchManager>()
+                    elasticsearchManager.prepareDeleteIndex(selectedIndex)
+                }
             }
             return
         }

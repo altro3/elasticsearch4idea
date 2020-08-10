@@ -16,6 +16,8 @@
 
 package org.elasticsearch4idea.service
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import com.intellij.credentialStore.CredentialAttributes
 import com.intellij.credentialStore.Credentials
 import com.intellij.credentialStore.generateServiceName
@@ -24,11 +26,11 @@ import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
-import com.intellij.openapi.project.Project
 import com.intellij.util.xmlb.annotations.Property
 import org.elasticsearch4idea.model.ClusterConfiguration
-import org.elasticsearch4idea.model.ViewMode
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.collections.HashMap
 
 
 @Service
@@ -36,46 +38,76 @@ import java.util.concurrent.ConcurrentHashMap
     name = "ElasticsearchConfiguration",
     storages = [Storage(value = "\$PROJECT_CONFIG_DIR$/elasticsearchSettings.xml")]
 )
-class ElasticsearchConfiguration(private val project: Project) :
-    PersistentStateComponent<ElasticsearchConfiguration.State> {
+class ElasticsearchConfiguration : PersistentStateComponent<ElasticsearchConfiguration.State> {
 
     private val clusterConfigurations: MutableMap<String, ClusterConfiguration> = ConcurrentHashMap()
-    var viewMode: ViewMode = ViewMode.TEXT
 
     override fun getState(): State {
         val clusters = HashMap<String, ClusterConfigInternal>()
         clusterConfigurations.forEach { (label, config) ->
             var credentialsStored = false
-            if (config.credentialsStored || config.credentials != null) {
-                credentialsStored = storeCredentials(label, config.credentials)
+            if (config.credentialsStored || config.credentials != null || config.sslConfigStored || config.sslConfig != null) {
+                credentialsStored = storeCredentials(config.id, config.credentials, config.sslConfig)
             }
-            var sslConfigStored = false
-            if (config.sslConfigStored || config.sslConfig != null) {
-                sslConfigStored = storeSSLConfig(label, config.sslConfig)
-            }
-            clusters.put(label, ClusterConfigInternal(config.label, config.url, credentialsStored, sslConfigStored))
+            val id = if (config.id.isEmpty()) UUID.randomUUID().toString() else config.id
+            clusters[label] = ClusterConfigInternal(id, config.label, config.url, credentialsStored, credentialsStored)
         }
-        return State(clusters, viewMode)
+        return State(clusters)
     }
 
     override fun loadState(state: State) {
-        this.viewMode = state.viewMode
         clusterConfigurations.clear()
 
         state.clusterConfigurations.asSequence().map {
+            var credentials: ClusterConfiguration.Credentials? = null
+            var sslConfig: ClusterConfiguration.SSLConfig? = null
+            if (it.value.credentialsStored || it.value.sslConfigStored) {
+                val secrets = readSecrets(it.value.id)
+                if (secrets == null) {
+                    // TODO remove in future release
+                    credentials = if (it.value.credentialsStored) readCredentialsOld(it.key) else null
+                    sslConfig = if (it.value.sslConfigStored) readSSLConfigOld(it.key) else null
+                } else {
+                    credentials = if (secrets.user == null || secrets.password == null)
+                        null
+                    else ClusterConfiguration.Credentials(
+                        user = secrets.user,
+                        password = secrets.password
+                    )
+                    sslConfig = if (secrets.trustStorePath == null && secrets.keyStorePath == null) null
+                    else ClusterConfiguration.SSLConfig(
+                        trustStorePath = secrets.trustStorePath,
+                        trustStorePassword = secrets.trustStorePassword,
+                        keyStorePath = secrets.keyStorePath,
+                        keyStorePassword = secrets.keyStorePassword
+                    )
+                }
+            }
+
             ClusterConfiguration(
+                id = it.value.id,
                 label = it.value.label,
                 url = it.value.url,
-                credentials = if (it.value.credentialsStored) readCredentials(it.key) else null,
-                sslConfig = if (it.value.sslConfigStored) readSSLConfig(it.key) else null,
+                credentials = credentials,
+                sslConfig = sslConfig,
                 credentialsStored = it.value.credentialsStored,
                 sslConfigStored = it.value.sslConfigStored
             )
         }
-            .forEach { clusterConfigurations.put(it.label, it) }
+            .forEach { clusterConfigurations[it.label] = it }
     }
 
-    private fun readCredentials(label: String): ClusterConfiguration.Credentials? {
+    private fun readSecrets(key: String): Secrets? {
+        val credentialAttributes = createCredentialAttributes(key)
+        val credentials = PasswordSafe.instance.get(credentialAttributes)
+        if (credentials?.password == null) {
+            return null
+        }
+        val secretsJson = String(Base64.getDecoder().decode(credentials.getPasswordAsString()))
+        return jacksonObjectMapper().readValue<Secrets>(secretsJson)
+    }
+
+    private fun readCredentialsOld(label: String): ClusterConfiguration.Credentials? {
         val credentialAttributes = createCredentialAttributes(label)
         val credentials = PasswordSafe.instance.get(credentialAttributes)
         if (credentials?.userName == null || credentials.password == null) {
@@ -84,7 +116,7 @@ class ElasticsearchConfiguration(private val project: Project) :
         return ClusterConfiguration.Credentials(credentials.userName!!, credentials.getPasswordAsString()!!)
     }
 
-    private fun readSSLConfig(label: String): ClusterConfiguration.SSLConfig? {
+    private fun readSSLConfigOld(label: String): ClusterConfiguration.SSLConfig? {
         val trustStoreAttributes = createCredentialAttributes("$label-trustStore")
         val keyStoreAttributes = createCredentialAttributes("$label-keyStore")
         val trustStoreCred = PasswordSafe.instance.get(trustStoreAttributes)
@@ -100,25 +132,33 @@ class ElasticsearchConfiguration(private val project: Project) :
         )
     }
 
-    private fun storeCredentials(label: String, configCredentials: ClusterConfiguration.Credentials?): Boolean {
-        val credentialAttributes = createCredentialAttributes(label)
-        val credentials = if (configCredentials == null) null
-        else Credentials(configCredentials.user, configCredentials.password)
-        PasswordSafe.instance.set(credentialAttributes, credentials)
-        return credentials != null
-    }
-
-    private fun storeSSLConfig(label: String, sslConfig: ClusterConfiguration.SSLConfig?): Boolean {
-        val trustStoreAttributes = createCredentialAttributes("$label-trustStore")
-        val trustStoreCred = if (sslConfig?.trustStorePath == null) null
-        else Credentials(sslConfig.trustStorePath, sslConfig.trustStorePassword)
-        PasswordSafe.instance.set(trustStoreAttributes, trustStoreCred)
-
-        val keyStoreAttributes = createCredentialAttributes("$label-keyStore")
-        val keyStoreCred = if (sslConfig?.keyStorePath == null) null
-        else Credentials(sslConfig.keyStorePath, sslConfig.keyStorePassword)
-        PasswordSafe.instance.set(keyStoreAttributes, keyStoreCred)
-        return trustStoreCred != null || keyStoreCred != null
+    private fun storeCredentials(
+        key: String,
+        configCredentials: ClusterConfiguration.Credentials?,
+        sslConfig: ClusterConfiguration.SSLConfig?
+    ): Boolean {
+        val credentialAttributes = createCredentialAttributes(key)
+        val secrets =
+            if (configCredentials?.user == null
+                && sslConfig?.trustStorePath == null
+                && sslConfig?.keyStorePath == null
+            ) null
+            else Secrets(
+                user = configCredentials?.user,
+                password = configCredentials?.password,
+                trustStorePath = sslConfig?.trustStorePath,
+                trustStorePassword = sslConfig?.trustStorePassword,
+                keyStorePath = sslConfig?.keyStorePath,
+                keyStorePassword = sslConfig?.keyStorePassword
+            )
+        if (secrets == null) {
+            PasswordSafe.instance.set(credentialAttributes, null)
+        } else {
+            val secretsJson = jacksonObjectMapper().writeValueAsString(secrets)
+            val secretsBase64 = Base64.getEncoder().encodeToString(secretsJson.toByteArray())
+            PasswordSafe.instance.set(credentialAttributes, Credentials(null, secretsBase64))
+        }
+        return secrets != null
     }
 
     private fun createCredentialAttributes(key: String): CredentialAttributes {
@@ -131,11 +171,8 @@ class ElasticsearchConfiguration(private val project: Project) :
 
     fun removeClusterConfiguration(label: String) {
         val clusterConfiguration = clusterConfigurations.remove(label)
-        if (clusterConfiguration?.credentialsStored == true) {
-            storeCredentials(label, null)
-        }
-        if (clusterConfiguration?.sslConfigStored == true) {
-            storeSSLConfig(label, null)
+        if (clusterConfiguration?.credentialsStored == true || clusterConfiguration?.sslConfigStored == true) {
+            storeCredentials(clusterConfiguration.id, null, null)
         }
     }
 
@@ -151,16 +188,22 @@ class ElasticsearchConfiguration(private val project: Project) :
         return clusterConfigurations[name]
     }
 
-    class State(
-        var clusterConfigurations: Map<String, ClusterConfigInternal> = HashMap(),
-        var viewMode: ViewMode = ViewMode.TEXT
-    )
+    class State(var clusterConfigurations: Map<String, ClusterConfigInternal> = HashMap())
 
     class ClusterConfigInternal(
+        var id: String = "",
         var label: String = "",
         var url: String = "",
         @Property(alwaysWrite = true) var credentialsStored: Boolean = true, // TODO true for backward compatibility, change to false in future release
         @Property(alwaysWrite = true) var sslConfigStored: Boolean = false
     )
 
+    class Secrets(
+        val user: String?,
+        val password: String?,
+        val trustStorePath: String?,
+        val keyStorePath: String?,
+        val trustStorePassword: String?,
+        val keyStorePassword: String?
+    )
 }
