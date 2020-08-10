@@ -42,7 +42,7 @@ class LoadTotal(
             val component =
                 e.presentation.getClientProperty(CustomComponentAction.COMPONENT_KEY) as ActionButtonWithText
             UIUtil.invokeLaterIfNeeded {
-                component.update()
+                component.updateUI()
             }
         }
     }

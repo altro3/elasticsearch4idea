@@ -94,7 +94,7 @@ class ChangePageSizeActionGroup(
             pageModel.setPageSize(size)
             queryManager.updateAndExecuteLastSearchRequest(pageModel) {
                 UIUtil.invokeLaterIfNeeded {
-                    component?.update()
+                    component?.updateUI()
                 }
             }
         }
@@ -119,7 +119,7 @@ class ChangePageSizeActionGroup(
             pageModel.setPageStart(0)
             queryManager.updateAndExecuteLastSearchRequest(pageModel) {
                 UIUtil.invokeLaterIfNeeded {
-                    component?.update()
+                    component?.updateUI()
                 }
             }
         }
