@@ -26,7 +26,6 @@ import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
-import com.intellij.openapi.project.Project
 import com.intellij.util.xmlb.annotations.Property
 import org.elasticsearch4idea.model.ClusterConfiguration
 import org.elasticsearch4idea.model.ViewMode
@@ -40,8 +39,7 @@ import kotlin.collections.HashMap
     name = "ElasticsearchConfiguration",
     storages = [Storage(value = "\$PROJECT_CONFIG_DIR$/elasticsearchSettings.xml")]
 )
-class ElasticsearchConfiguration(private val project: Project) :
-    PersistentStateComponent<ElasticsearchConfiguration.State> {
+class ElasticsearchConfiguration : PersistentStateComponent<ElasticsearchConfiguration.State> {
 
     private val clusterConfigurations: MutableMap<String, ClusterConfiguration> = ConcurrentHashMap()
 
@@ -53,10 +51,7 @@ class ElasticsearchConfiguration(private val project: Project) :
                 credentialsStored = storeCredentials(config.id, config.credentials, config.sslConfig)
             }
             val id = if (config.id.isEmpty()) UUID.randomUUID().toString() else config.id
-            clusters.put(
-                label,
-                ClusterConfigInternal(id, config.label, config.url, credentialsStored, credentialsStored)
-            )
+            clusters[label] = ClusterConfigInternal(id, config.label, config.url, credentialsStored, credentialsStored)
         }
         return State(clusters)
     }
@@ -100,7 +95,7 @@ class ElasticsearchConfiguration(private val project: Project) :
                 sslConfigStored = it.value.sslConfigStored
             )
         }
-            .forEach { clusterConfigurations.put(it.label, it) }
+            .forEach { clusterConfigurations[it.label] = it }
     }
 
     private fun readSecrets(key: String): Secrets? {

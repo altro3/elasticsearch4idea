@@ -49,7 +49,7 @@ class QueryManager(
 
     fun updateAndExecuteLastSearchRequest(pageModel: PageModel) {
         updateLastSearchRequest(pageModel)
-        executeRequest(lastSearchRequest, false, { })
+        executeRequest(lastSearchRequest, false) { }
     }
 
     fun updateAndExecuteLastSearchRequest(pageModel: PageModel, responseListener: Listener<ResponseContext>) {
@@ -59,7 +59,7 @@ class QueryManager(
 
     fun executeRequest() {
         val request = requestProvider.invoke()
-        executeRequest(request, true, {})
+        executeRequest(request, true) {}
     }
 
     private fun executeRequest(

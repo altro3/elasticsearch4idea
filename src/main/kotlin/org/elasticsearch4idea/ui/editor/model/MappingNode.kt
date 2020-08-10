@@ -24,10 +24,11 @@ class MappingNode(
 
     companion object {
 
+        @Suppress("unchecked_cast")
         fun createNode(name: String, properties: Map<String, Any>): MappingNode {
-            val type = properties.get("type") as String?
+            val type = properties["type"] as String?
             val children = if (properties.contains("properties")) {
-                (properties.get("properties") as Map<String, Map<String, Any>>).map {
+                (properties["properties"] as Map<String, Map<String, Any>>).map {
                     it.key to createNode(it.key, it.value)
                 }.toMap()
             } else {

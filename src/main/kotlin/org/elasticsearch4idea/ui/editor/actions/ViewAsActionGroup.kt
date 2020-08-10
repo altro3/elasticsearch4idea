@@ -20,14 +20,11 @@ import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.ToggleOptionAction
 import com.intellij.openapi.project.DumbAware
-import com.intellij.openapi.project.Project
 import org.elasticsearch4idea.model.ViewMode
 import org.elasticsearch4idea.ui.editor.views.ElasticsearchPanel
 
-class ViewAsActionGroup(
-    private val elasticsearchPanel: ElasticsearchPanel,
-    project: Project
-) : DefaultActionGroup("Auto-refresh clusters", true), DumbAware {
+class ViewAsActionGroup(private val elasticsearchPanel: ElasticsearchPanel) :
+    DefaultActionGroup("Auto-refresh clusters", true), DumbAware {
 
     init {
         templatePresentation.icon = AllIcons.Actions.Show

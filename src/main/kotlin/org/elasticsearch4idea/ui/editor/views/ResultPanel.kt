@@ -33,7 +33,7 @@ import javax.swing.JPanel
 class ResultPanel(
     private val project: Project,
     private val elasticsearchPanel: ElasticsearchPanel,
-    private val queryManager: QueryManager
+    queryManager: QueryManager
 ) : JBLoadingPanel(BorderLayout(), elasticsearchPanel, 100), Disposable {
     private var jsonResultPanel: JsonResultPanel? = null
     private var tableResultPanel: TableResultPanel? = null
@@ -68,7 +68,7 @@ class ResultPanel(
         return globalSettings.settings.viewMode
     }
 
-    fun updateResult(responseContext: ResponseContext) {
+    private fun updateResult(responseContext: ResponseContext) {
         updateView(getCurrentViewMode(), responseContext)
     }
 

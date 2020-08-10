@@ -69,13 +69,11 @@ class ElasticsearchExplorer(
 ) : SimpleToolWindowPanel(true, true), Disposable {
 
     private val tree: Tree
-    private val table: ElasticsearchInfosTable
-    private val infoTablePanel: JBLoadingPanel
+    private val table: ElasticsearchInfosTable = ElasticsearchInfosTable()
+    private val infoTablePanel: JBLoadingPanel = JBLoadingPanel(BorderLayout(), this, 100)
     private val elasticsearchManager = project.service<ElasticsearchManager>()
 
     init {
-        table = ElasticsearchInfosTable()
-        infoTablePanel = JBLoadingPanel(BorderLayout(), this, 100)
         infoTablePanel.add(ScrollPaneFactory.createScrollPane(table))
 
         val treePanel = JPanel(BorderLayout())

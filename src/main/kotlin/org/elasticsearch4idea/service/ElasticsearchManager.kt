@@ -130,7 +130,7 @@ class ElasticsearchManager(project: Project) : Disposable {
             val oldIndexesByName = cluster.indices.associateBy { it.name }
             indices.forEach {
                 val index = if (oldIndexesByName.containsKey(it.name)) {
-                    oldIndexesByName[it.name]!!
+                    oldIndexesByName.getValue(it.name)
                 } else {
                     val index = ElasticsearchIndex(it.name)
                     cluster.addIndex(index)
@@ -357,7 +357,7 @@ class ElasticsearchManager(project: Project) : Disposable {
     @Synchronized
     private fun getClient(label: String): ElasticsearchClient {
         if (!clients.contains(label)) {
-            clients.put(label, ElasticsearchClient(elasticsearchConfiguration.getConfiguration(label)!!))
+            clients[label] = ElasticsearchClient(elasticsearchConfiguration.getConfiguration(label)!!)
         }
         return clients[label]!!
     }

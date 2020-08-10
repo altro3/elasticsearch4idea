@@ -36,7 +36,7 @@ object MyUIUtils {
         if (color != null) {
             return color
         }
-        return getPropertiesTableHeaderColor();
+        return getPropertiesTableHeaderColor()
     }
 
     fun getPropertiesTableHeaderColor(): Color {

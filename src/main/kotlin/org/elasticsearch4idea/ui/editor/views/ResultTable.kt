@@ -148,7 +148,7 @@ class ResultTable internal constructor(
                 val hasValue = entries.any { it.hit.values.contains(key) }
                 if (hasValue) {
                     columns.add(ResultTableColumnInfo(key, collection) {
-                        it.values.get(key)
+                        it.values[key]
                     })
                 }
             }

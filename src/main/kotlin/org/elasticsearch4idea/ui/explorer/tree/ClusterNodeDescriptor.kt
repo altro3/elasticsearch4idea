@@ -47,7 +47,7 @@ class ClusterNodeDescriptor(
         presentation.setIcon(icon)
         presentation.presentableText = cluster.label
         presentation.addText(cluster.label, SimpleTextAttributes.REGULAR_ATTRIBUTES)
-        presentation.setTooltip(cluster.host)
+        presentation.tooltip = cluster.host
     }
 
 }

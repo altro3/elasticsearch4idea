@@ -91,7 +91,7 @@ class ElasticsearchClient(clusterConfiguration: ClusterConfiguration) : Closeabl
                             name = it[header.getValue("index")],
                             health = it[header.getValue("health")].toUpperCase()
                                 .let { health ->
-                                    HealthStatus.values().firstOrNull { it.name == health }
+                                    HealthStatus.values().firstOrNull { status -> status.name == health }
                                 },
                             status = IndexStatus.valueOf(it[header.getValue("status")].toUpperCase()),
                             primaries = it[header.getValue("pri")],
@@ -179,7 +179,7 @@ class ElasticsearchClient(clusterConfiguration: ClusterConfiguration) : Closeabl
         lines.asSequence()
             .map { line ->
                 columnRanges.asSequence()
-                    .map { line.substring(it.first, it.second).trim() }
+                    .map { range -> line.substring(range.first, range.second).trim() }
                     .toList()
             }.toList()
     })

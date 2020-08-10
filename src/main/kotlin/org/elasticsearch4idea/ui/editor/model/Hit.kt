@@ -48,7 +48,7 @@ class Hit(
         }
 
         private fun collectValues(field: String, value: Any?, values: MutableMap<String, Any?>) {
-            values.put(field, value)
+            values[field] = value
             if (value is List<*>) {
                 val objects = value.asSequence().mapNotNull {
                     if (it is Map<*, *>) {

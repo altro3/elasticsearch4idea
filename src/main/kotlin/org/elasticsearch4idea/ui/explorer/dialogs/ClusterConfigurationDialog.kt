@@ -37,7 +37,6 @@ import org.elasticsearch4idea.service.ElasticsearchManager
 import org.elasticsearch4idea.ui.explorer.ElasticsearchExplorer
 import org.elasticsearch4idea.utils.TaskUtils
 import java.awt.Dimension
-import java.awt.event.ActionEvent
 import java.util.*
 import javax.swing.JPasswordField
 
@@ -96,7 +95,7 @@ class ClusterConfigurationDialog(
                 }
         }
         row {
-            button("Test Connection", ::testConnection)
+            button("Test Connection") { testConnection() }
         }
         row {
             feedbackLabel()
@@ -174,7 +173,7 @@ class ClusterConfigurationDialog(
 
     override fun createCenterPanel() = dialogPanel
 
-    private fun testConnection(event: ActionEvent) {
+    private fun testConnection() {
         TaskUtils.runBackgroundTask("Connecting to Elasticsearch cluster...") {
             generalPanel.apply()
             sslPanel.apply()

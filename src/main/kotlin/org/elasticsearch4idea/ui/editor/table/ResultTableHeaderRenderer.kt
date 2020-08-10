@@ -39,7 +39,7 @@ class ResultTableHeaderRenderer : DefaultTableCellHeaderRenderer() {
         if (cmp !is JLabel) return cmp
         cmp.horizontalAlignment = SwingConstants.LEFT
         var border = cmp.border
-        val indent = JBUI.Borders.empty(0, 8,  0, 0);
+        val indent = JBUI.Borders.empty(0, 8,  0, 0)
         border = JBUI.Borders.merge(border, indent, true)
         border = JBUI.Borders.merge(border, JBUI.Borders.customLine(JBColor.border(), 1, 0, 1, 1), true)
         cmp.border = border

@@ -45,7 +45,7 @@ import java.awt.Dimension
 import javax.swing.JPanel
 
 class ElasticsearchPanel(
-    private val project: Project,
+    project: Project,
     private val elasticsearchFile: ElasticsearchFile
 ) : JPanel(), Disposable {
 
@@ -103,7 +103,7 @@ class ElasticsearchPanel(
     private fun createToolbarPanel(): JPanel {
         val group = DefaultActionGroup()
         group.add(ExecuteQueryAction(queryManager, this))
-        group.add(ViewAsActionGroup(this, project))
+        group.add(ViewAsActionGroup(this))
         group.add(ChangeOrientationAction(this))
         val actionToolBar = ActionManager.getInstance()
             .createActionToolbar("ElasticsearchQueryToolBar", group, true) as ActionToolbarImpl

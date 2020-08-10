@@ -29,7 +29,7 @@ class ResponseContext(
     val isNewRequest: Boolean,
     val request: Request,
     val response: String,
-    val mappingResponse: String?
+    private val mappingResponse: String?
 ) {
 
     private var responseJsonNode: JsonNode? = null
@@ -38,14 +38,14 @@ class ResponseContext(
     private var mappings: List<Mapping>? = null
     private var queryParams: Map<String, NameValuePair>? = null
 
-    fun getResponseJsonNode(): JsonNode {
+    private fun getResponseJsonNode(): JsonNode {
         if (responseJsonNode == null) {
             responseJsonNode = objectMapper.readValue(response)
         }
         return responseJsonNode!!
     }
 
-    fun getRequestBodyJsonNode(): JsonNode {
+    private fun getRequestBodyJsonNode(): JsonNode {
         if (requestBodyJsonNode == null) {
             requestBodyJsonNode = objectMapper.readValue(if (request.body.isBlank()) "{}" else request.body)
         }
@@ -95,7 +95,7 @@ class ResponseContext(
         return mappings!!
     }
 
-    fun getQueryParams(): Map<String, NameValuePair> {
+    private fun getQueryParams(): Map<String, NameValuePair> {
         if (queryParams == null) {
             queryParams = URIBuilder(request.path)
                 .queryParams.associateBy { it.name }
@@ -104,7 +104,7 @@ class ResponseContext(
     }
 
     fun getFrom(): Long {
-        var from = getQueryParams().get("from")?.value?.toLongOrNull()
+        var from = getQueryParams()["from"]?.value?.toLongOrNull()
             ?: getRequestBodyJsonNode().get("from")?.asLong() ?: 0
         if (from < 0) {
             from = 0
@@ -113,7 +113,7 @@ class ResponseContext(
     }
 
     fun getSize(): Long {
-        var size = getQueryParams().get("size")?.value?.toLongOrNull()
+        var size = getQueryParams()["size"]?.value?.toLongOrNull()
             ?: getRequestBodyJsonNode().get("size")?.asLong() ?: getHits().size.toLong()
         if (size < 0) {
             size = getHits().size.toLong()
@@ -125,7 +125,7 @@ class ResponseContext(
         return mappingResponse != null && isResponseValid() && isRequestBodyValid() && hasHits()
     }
 
-    fun isRequestBodyValid(): Boolean {
+    private fun isRequestBodyValid(): Boolean {
         return try {
             getRequestBodyJsonNode()
             true
@@ -134,7 +134,7 @@ class ResponseContext(
         }
     }
 
-    fun isResponseValid(): Boolean {
+    private fun isResponseValid(): Boolean {
         return try {
             getResponseJsonNode()
             true
@@ -143,7 +143,7 @@ class ResponseContext(
         }
     }
 
-    fun hasHits(): Boolean {
+    private fun hasHits(): Boolean {
         if (!isResponseValid() || getHitsNode() == null) {
             return false
         }
