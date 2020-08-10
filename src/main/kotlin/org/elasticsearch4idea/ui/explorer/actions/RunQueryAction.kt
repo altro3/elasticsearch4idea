@@ -42,7 +42,7 @@ class RunQueryAction constructor(
             elasticsearchExplorer.getSelectedIndex()?.cluster
         }
         if (cluster != null) {
-            elasticsearchExplorer.openQueryEditor(cluster, requestProvider.invoke())
+            elasticsearchExplorer.openQueryEditor(cluster, requestProvider.invoke(), 0.0f)
         }
     }
 

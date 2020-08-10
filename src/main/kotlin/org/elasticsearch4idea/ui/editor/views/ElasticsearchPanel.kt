@@ -85,7 +85,7 @@ class ElasticsearchPanel(
             bodyPanel.isVisible = selectedMethod.hasBody
         }
 
-        splitter = Splitter(globalSettings.settings.isVerticalOrientation, 0.3f)
+        splitter = Splitter(globalSettings.settings.isVerticalOrientation, elasticsearchFile.bodyToResponseProportion)
         splitter.divider.background = UIUtil.SIDE_PANEL_BACKGROUND
         splitter.firstComponent = bodyPanel
         splitter.secondComponent = resultPanel

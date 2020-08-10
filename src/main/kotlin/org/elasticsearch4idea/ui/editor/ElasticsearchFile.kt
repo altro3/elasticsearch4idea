@@ -29,7 +29,8 @@ import java.io.OutputStream
 class ElasticsearchFile(
     val project: Project,
     val cluster: ElasticsearchCluster,
-    val request: Request
+    val request: Request,
+    val bodyToResponseProportion: Float
 ) : VirtualFile() {
     private val myModStamp: Long = LocalTimeCounter.currentTime()
 

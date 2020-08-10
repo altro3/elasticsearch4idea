@@ -298,7 +298,7 @@ class ElasticsearchExplorer(
         if (index != null) {
             val body = "{\n  \"from\": 0,\n  \"size\": 20,\n  \"query\": {\n    \"match_all\": {}\n  }\n}"
             val request = Request(path = "/${index.name}/_search", body = body, method = Method.GET)
-            openQueryEditor(index.cluster, request)
+            openQueryEditor(index.cluster, request, 0.3f)
             return
         }
         val cluster = getSelectedCluster()
@@ -310,12 +310,13 @@ class ElasticsearchExplorer(
         }
     }
 
-    fun openQueryEditor(cluster: ElasticsearchCluster, request: Request) {
+    fun openQueryEditor(cluster: ElasticsearchCluster, request: Request, bodyToResponseProportion: Float) {
         ElasticsearchFileSystem.instance?.openEditor(
             ElasticsearchFile(
                 project,
                 cluster,
-                request
+                request,
+                bodyToResponseProportion
             )
         )
     }
