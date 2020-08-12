@@ -1,5 +1,9 @@
 Change Log
 ----------
+## Version 0.2.1
+- \#8 Fix java.lang.NoClassDefFoundError: org/apache/commons/io/FileUtils
+
+
 ## Version 0.2.0
 - Support horizontal request/response view
 - Improve table appearance

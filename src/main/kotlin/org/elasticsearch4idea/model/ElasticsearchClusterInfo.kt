@@ -16,9 +16,9 @@
 
 package org.elasticsearch4idea.model
 
-import org.apache.commons.io.FileUtils
 import org.elasticsearch4idea.rest.model.ClusterStats
 import org.elasticsearch4idea.ui.explorer.table.TableEntry
+import org.elasticsearch4idea.utils.FileUtils
 
 class ElasticsearchClusterInfo(
     private val clusterStats: ClusterStats
