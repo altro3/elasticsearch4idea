@@ -1,5 +1,9 @@
 Change Log
 ----------
+## Version 0.2.2
+- \#9 Support self-signed certificates
+
+
 ## Version 0.2.1
 - \#8 Fix java.lang.NoClassDefFoundError: org/apache/commons/io/FileUtils
 

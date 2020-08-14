@@ -44,7 +44,8 @@ class ClusterConfiguration(
         val trustStorePath: String?,
         val keyStorePath: String?,
         val trustStorePassword: String?,
-        val keyStorePassword: String?
+        val keyStorePassword: String?,
+        val selfSigned: Boolean
     )
 
 }

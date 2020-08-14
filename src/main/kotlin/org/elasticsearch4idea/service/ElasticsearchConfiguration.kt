@@ -50,7 +50,14 @@ class ElasticsearchConfiguration : PersistentStateComponent<ElasticsearchConfigu
                 credentialsStored = storeCredentials(config.id, config.credentials, config.sslConfig)
             }
             val id = if (config.id.isEmpty()) UUID.randomUUID().toString() else config.id
-            clusters[label] = ClusterConfigInternal(id, config.label, config.url, credentialsStored, credentialsStored)
+            clusters[label] = ClusterConfigInternal(
+                id = id,
+                label = config.label,
+                url = config.url,
+                credentialsStored = credentialsStored,
+                sslConfigStored = credentialsStored,
+                selfSigned = config.sslConfig?.selfSigned ?: false
+            )
         }
         return State(clusters)
     }
@@ -79,7 +86,8 @@ class ElasticsearchConfiguration : PersistentStateComponent<ElasticsearchConfigu
                         trustStorePath = secrets.trustStorePath,
                         trustStorePassword = secrets.trustStorePassword,
                         keyStorePath = secrets.keyStorePath,
-                        keyStorePassword = secrets.keyStorePassword
+                        keyStorePassword = secrets.keyStorePassword,
+                        selfSigned = it.value.selfSigned
                     )
                 }
             }
@@ -128,7 +136,8 @@ class ElasticsearchConfiguration : PersistentStateComponent<ElasticsearchConfigu
             trustStorePath = trustStoreCred?.userName,
             keyStorePath = keyStoreCred?.userName,
             trustStorePassword = trustStoreCred?.getPasswordAsString(),
-            keyStorePassword = keyStoreCred?.getPasswordAsString()
+            keyStorePassword = keyStoreCred?.getPasswordAsString(),
+            selfSigned = false
         )
     }
 
@@ -195,7 +204,8 @@ class ElasticsearchConfiguration : PersistentStateComponent<ElasticsearchConfigu
         var label: String = "",
         var url: String = "",
         @Property(alwaysWrite = true) var credentialsStored: Boolean = true, // TODO true for backward compatibility, change to false in future release
-        @Property(alwaysWrite = true) var sslConfigStored: Boolean = false
+        @Property(alwaysWrite = true) var sslConfigStored: Boolean = false,
+        var selfSigned: Boolean = false
     )
 
     class Secrets(

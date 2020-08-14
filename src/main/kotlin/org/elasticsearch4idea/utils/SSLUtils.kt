@@ -16,6 +16,7 @@
 
 package org.elasticsearch4idea.utils
 
+import org.apache.http.conn.ssl.TrustSelfSignedStrategy
 import org.apache.http.ssl.SSLContexts
 import org.elasticsearch4idea.model.ClusterConfiguration
 import java.nio.file.Files
@@ -35,7 +36,8 @@ object SSLUtils {
             sslConfig.trustStorePath,
             sslConfig.keyStorePath,
             sslConfig.trustStorePassword,
-            sslConfig.keyStorePassword
+            sslConfig.keyStorePassword,
+            sslConfig.selfSigned
         )
     }
 
@@ -43,7 +45,8 @@ object SSLUtils {
         trustStorePathStr: String?,
         keyStorePathStr: String?,
         trustStorePass: String?,
-        keyStorePass: String?
+        keyStorePass: String?,
+        selfSigned: Boolean
     ): SSLContext? {
         val trustStore: KeyStore? = loadKeyStore(trustStorePathStr, trustStorePass)
         val keyStore: KeyStore? = loadKeyStore(keyStorePathStr, keyStorePass)
@@ -52,7 +55,8 @@ object SSLUtils {
         }
         val builder = SSLContexts.custom()
         if (trustStore != null) {
-            builder.loadTrustMaterial(trustStore, null)
+            val trustStrategy = if (selfSigned) TrustSelfSignedStrategy.INSTANCE else null
+            builder.loadTrustMaterial(trustStore, trustStrategy)
         }
         if (keyStore != null) {
             builder.loadKeyMaterial(keyStore, keyStorePass?.toCharArray())
