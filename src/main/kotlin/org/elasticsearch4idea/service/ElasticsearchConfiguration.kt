@@ -22,10 +22,7 @@ import com.intellij.credentialStore.CredentialAttributes
 import com.intellij.credentialStore.Credentials
 import com.intellij.credentialStore.generateServiceName
 import com.intellij.ide.passwordSafe.PasswordSafe
-import com.intellij.openapi.components.PersistentStateComponent
-import com.intellij.openapi.components.Service
-import com.intellij.openapi.components.State
-import com.intellij.openapi.components.Storage
+import com.intellij.openapi.components.*
 import com.intellij.util.xmlb.annotations.Property
 import org.elasticsearch4idea.model.ClusterConfiguration
 import java.util.*
@@ -36,7 +33,7 @@ import kotlin.collections.HashMap
 @Service
 @State(
     name = "ElasticsearchConfiguration",
-    storages = [Storage(value = "\$PROJECT_CONFIG_DIR$/elasticsearchSettings.xml")]
+    storages = [Storage(value = "\$PROJECT_CONFIG_DIR$/elasticsearchSettings.xml", roamingType = RoamingType.DISABLED)]
 )
 class ElasticsearchConfiguration : PersistentStateComponent<ElasticsearchConfiguration.State> {
 
