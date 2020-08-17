@@ -26,7 +26,6 @@ import org.elasticsearch4idea.utils.MyUIUtils
 import java.awt.Font
 import java.awt.event.FocusAdapter
 import java.awt.event.FocusEvent
-import javax.swing.table.JTableHeader
 
 
 class ElasticsearchInfosTable internal constructor() : TableView<TableEntry>(
@@ -45,13 +44,8 @@ class ElasticsearchInfosTable internal constructor() : TableView<TableEntry>(
                 clearSelection()
             }
         })
-    }
-
-    override fun getTableHeader(): JTableHeader {
-        val header = super.getTableHeader()
-        header.background = MyUIUtils.getPropertiesTableHeaderColor()
-        header.border = JBUI.Borders.customLine(JBColor.border(), 1, 0, 0, 0)
-        return header
+        tableHeader.background = MyUIUtils.getPropertiesTableHeaderColor()
+        tableHeader.border = JBUI.Borders.customLine(JBColor.border(), 1, 0, 0, 0)
     }
 
     fun updateInfos(collectionInfoEntries: List<TableEntry>) {

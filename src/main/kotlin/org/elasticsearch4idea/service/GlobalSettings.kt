@@ -16,15 +16,12 @@
 
 package org.elasticsearch4idea.service
 
-import com.intellij.openapi.components.PersistentStateComponent
-import com.intellij.openapi.components.Service
-import com.intellij.openapi.components.State
-import com.intellij.openapi.components.Storage
+import com.intellij.openapi.components.*
 
 @Service
 @State(
     name = "GlobalElasticsearchConfiguration",
-    storages = [Storage(value = "globalElasticsearchSettings.xml")]
+    storages = [Storage(value = "globalElasticsearchSettings.xml", roamingType = RoamingType.DISABLED)]
 )
 class GlobalSettings : PersistentStateComponent<GlobalSettingsState> {
 

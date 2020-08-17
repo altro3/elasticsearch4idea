@@ -22,10 +22,7 @@ import com.intellij.credentialStore.CredentialAttributes
 import com.intellij.credentialStore.Credentials
 import com.intellij.credentialStore.generateServiceName
 import com.intellij.ide.passwordSafe.PasswordSafe
-import com.intellij.openapi.components.PersistentStateComponent
-import com.intellij.openapi.components.Service
-import com.intellij.openapi.components.State
-import com.intellij.openapi.components.Storage
+import com.intellij.openapi.components.*
 import com.intellij.util.xmlb.annotations.Property
 import org.elasticsearch4idea.model.ClusterConfiguration
 import java.util.*
@@ -36,7 +33,7 @@ import kotlin.collections.HashMap
 @Service
 @State(
     name = "ElasticsearchConfiguration",
-    storages = [Storage(value = "\$PROJECT_CONFIG_DIR$/elasticsearchSettings.xml")]
+    storages = [Storage(value = "\$PROJECT_CONFIG_DIR$/elasticsearchSettings.xml", roamingType = RoamingType.DISABLED)]
 )
 class ElasticsearchConfiguration : PersistentStateComponent<ElasticsearchConfiguration.State> {
 
@@ -50,7 +47,14 @@ class ElasticsearchConfiguration : PersistentStateComponent<ElasticsearchConfigu
                 credentialsStored = storeCredentials(config.id, config.credentials, config.sslConfig)
             }
             val id = if (config.id.isEmpty()) UUID.randomUUID().toString() else config.id
-            clusters[label] = ClusterConfigInternal(id, config.label, config.url, credentialsStored, credentialsStored)
+            clusters[label] = ClusterConfigInternal(
+                id = id,
+                label = config.label,
+                url = config.url,
+                credentialsStored = credentialsStored,
+                sslConfigStored = credentialsStored,
+                selfSigned = config.sslConfig?.selfSigned ?: false
+            )
         }
         return State(clusters)
     }
@@ -79,7 +83,8 @@ class ElasticsearchConfiguration : PersistentStateComponent<ElasticsearchConfigu
                         trustStorePath = secrets.trustStorePath,
                         trustStorePassword = secrets.trustStorePassword,
                         keyStorePath = secrets.keyStorePath,
-                        keyStorePassword = secrets.keyStorePassword
+                        keyStorePassword = secrets.keyStorePassword,
+                        selfSigned = it.value.selfSigned
                     )
                 }
             }
@@ -128,7 +133,8 @@ class ElasticsearchConfiguration : PersistentStateComponent<ElasticsearchConfigu
             trustStorePath = trustStoreCred?.userName,
             keyStorePath = keyStoreCred?.userName,
             trustStorePassword = trustStoreCred?.getPasswordAsString(),
-            keyStorePassword = keyStoreCred?.getPasswordAsString()
+            keyStorePassword = keyStoreCred?.getPasswordAsString(),
+            selfSigned = false
         )
     }
 
@@ -195,7 +201,8 @@ class ElasticsearchConfiguration : PersistentStateComponent<ElasticsearchConfigu
         var label: String = "",
         var url: String = "",
         @Property(alwaysWrite = true) var credentialsStored: Boolean = true, // TODO true for backward compatibility, change to false in future release
-        @Property(alwaysWrite = true) var sslConfigStored: Boolean = false
+        @Property(alwaysWrite = true) var sslConfigStored: Boolean = false,
+        var selfSigned: Boolean = false
     )
 
     class Secrets(

@@ -70,6 +70,7 @@ class ClusterConfigurationDialog(
     private var keyStorePath = previousConfiguration?.sslConfig?.keyStorePath ?: ""
     private var trustStorePassword = previousConfiguration?.sslConfig?.trustStorePassword ?: ""
     private var keyStorePassword = previousConfiguration?.sslConfig?.keyStorePassword ?: ""
+    private var selfSigned = previousConfiguration?.sslConfig?.selfSigned ?: false
 
     init {
         feedbackLabel.isVisible = false
@@ -150,6 +151,9 @@ class ClusterConfigurationDialog(
             keystorePasswordField()
                 .withTextBinding(PropertyBinding({ keyStorePassword }, { keyStorePassword = it }))
         }
+        row() {
+            checkBox("Self-signed:", { selfSigned }, { selfSigned = it })
+        }
     }
 
     private fun validateTabs(): ValidationInfo? {
@@ -178,14 +182,18 @@ class ClusterConfigurationDialog(
         TaskUtils.runBackgroundTask("Connecting to Elasticsearch cluster...") {
             generalPanel.apply()
             sslPanel.apply()
-            elasticsearchManager.prepareTestConnection(getConfiguration())
-                .onError {
-                    val errorMessage = it.message
-                    setErrorMessage("Connection test failed" + if (errorMessage.isNullOrBlank()) "" else ": $errorMessage")
-                }
-                .onSuccess {
-                    setSuccessMessage("Connection test successful")
-                }
+            try {
+                elasticsearchManager.prepareTestConnection(getConfiguration())
+                    .onError {
+                        setErrorMessage("Connection test failed: $it")
+                    }
+                    .onSuccess {
+                        setSuccessMessage("Connection test successful")
+                    }
+            } catch (e: Exception) {
+                setErrorMessage("Connection test failed: $e")
+                return@runBackgroundTask null
+            }
         }
     }
 
@@ -202,6 +210,7 @@ class ClusterConfigurationDialog(
         feedbackLabel.icon = Icons.SUCCESS
         feedbackLabel.foreground = JBColor.GRAY
         feedbackLabel.text = message
+        feedbackLabel.toolTipText = ""
     }
 
     private fun validateName(): ValidationInfoBuilder.(JTextField) -> ValidationInfo? {
@@ -260,7 +269,8 @@ class ClusterConfigurationDialog(
             trustStorePath = if (trustStorePath.isBlank()) null else trustStorePath,
             keyStorePath = if (keyStorePath.isBlank()) null else keyStorePath,
             trustStorePassword = trustStorePassword,
-            keyStorePassword = keyStorePassword
+            keyStorePassword = keyStorePassword,
+            selfSigned = selfSigned
         )
     }
 

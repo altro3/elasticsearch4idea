@@ -25,11 +25,11 @@ import org.elasticsearch4idea.model.RequestExecution
 
 object TaskUtils {
 
-    fun runBackgroundTask(title: String, task: () -> RequestExecution<*>) {
+    fun runBackgroundTask(title: String, task: () -> RequestExecution<*>?) {
         ProgressManager.getInstance().run(object : Task.Backgroundable(null, title, true) {
 
             override fun run(indicator: ProgressIndicator) {
-                val requestExecution = task.invoke()
+                val requestExecution = task.invoke() ?: return
                 val progressIndicator = object : AbstractProgressIndicatorExBase() {
                     override fun cancel() {
                         requestExecution.abort()
