@@ -60,6 +60,7 @@ class JsonResultPanel(private val project: Project) : JPanel(), Disposable {
     fun updateEditorText(responseContext: ResponseContext) {
         editorDocument.setText(responseContext.response)
         PsiDocumentManager.getInstance(project).commitDocument(editorDocument)
+        editor.caretModel.moveToOffset(0)
         CodeStyleManager.getInstance(project).reformatText(psiFile, 0, psiFile.textRange.endOffset)
     }
 
