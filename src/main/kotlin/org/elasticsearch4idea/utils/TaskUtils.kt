@@ -29,7 +29,11 @@ object TaskUtils {
         ProgressManager.getInstance().run(object : Task.Backgroundable(null, title, true) {
 
             override fun run(indicator: ProgressIndicator) {
-                val requestExecution = task.invoke() ?: return
+                val requestExecution = try {
+                    task.invoke() ?: return
+                } catch (e: Exception) {
+                    return
+                }
                 val progressIndicator = object : AbstractProgressIndicatorExBase() {
                     override fun cancel() {
                         requestExecution.abort()

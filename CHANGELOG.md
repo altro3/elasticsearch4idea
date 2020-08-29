@@ -1,5 +1,9 @@
 Change Log
 ----------
+## Version 0.2.3
+- \#10 Fix fatal Error on invalid HTTP host
+
+
 ## Version 0.2.2
 - Fix: table header constantly generates events and loads CPU.
 - \#9 Support self-signed certificates
