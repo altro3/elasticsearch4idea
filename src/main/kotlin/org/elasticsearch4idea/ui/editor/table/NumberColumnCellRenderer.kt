@@ -37,7 +37,7 @@ class NumberColumnCellRenderer : DefaultTableCellHeaderRenderer() {
         val cmp: Component = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column)
         if (cmp !is JLabel) return cmp
         cmp.horizontalAlignment = SwingConstants.CENTER
-        var border = JBUI.Borders.customLine(MyUIUtils.getEditorBackground(), 1, 0, 0, 0)
+        var border = JBUI.Borders.customLine(MyUIUtils.getTableBackground(), 1, 0, 0, 0)
         val indent = JBUI.Borders.empty(0, 8)
         border = JBUI.Borders.merge(border, indent, false)
         cmp.border = border

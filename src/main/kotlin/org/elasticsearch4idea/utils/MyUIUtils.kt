@@ -18,48 +18,60 @@ package org.elasticsearch4idea.utils
 
 import com.intellij.openapi.editor.colors.EditorColors
 import com.intellij.openapi.editor.colors.EditorColorsManager
+import com.intellij.util.ObjectUtils
+import com.intellij.util.ui.UIUtil
 import java.awt.Color
+import java.lang.Integer.max
+import java.lang.Integer.min
 
 object MyUIUtils {
 
     fun getResultTableHeaderColor(): Color {
         val color = EditorColorsManager.getInstance().globalScheme.defaultBackground
         return if (EditorColorsManager.getInstance().isDarkEditor) {
-            Color(color.red + 16, color.green + 16, color.blue + 16)
+            Color(min(color.red + 16, 255), min(color.green + 16, 255), min(color.blue + 16, 255))
         } else {
-            Color(color.red - 16, color.green - 16, color.blue - 16)
+            Color(max(0, color.red - 16), max(0, color.green - 16), max(0, color.blue - 16))
         }
     }
 
     fun getTableGridColor(): Color {
-        val color = EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.INDENT_GUIDE_COLOR)
-        if (color != null) {
-            return color
-        }
-        return getPropertiesTableHeaderColor()
+        return ObjectUtils.chooseNotNull(
+            EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.INDENT_GUIDE_COLOR),
+            UIUtil.getTableGridColor()
+        )
     }
 
     fun getPropertiesTableHeaderColor(): Color {
+        val color = ObjectUtils.chooseNotNull(
+            EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.GUTTER_BACKGROUND),
+            getResultTableHeaderColor()
+        )
         return if (EditorColorsManager.getInstance().isDarkEditor) {
-            EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.GUTTER_BACKGROUND)!!.brighter()
+            color.brighter()
         } else {
-            EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.GUTTER_BACKGROUND)!!
+            color
         }
     }
 
-    fun getBottomPanelBackgroundColor(): Color {
-        return EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.GUTTER_BACKGROUND)!!
-    }
-
     fun getSelectedLineColor(): Color {
-        return EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.CARET_ROW_COLOR)!!
+        return ObjectUtils.chooseNotNull(
+            EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.CARET_ROW_COLOR),
+            UIUtil.getDecoratedRowColor()
+        )
     }
 
     fun getSelectedCellColor(): Color {
-        return EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.SELECTION_BACKGROUND_COLOR)!!
+        return ObjectUtils.chooseNotNull(
+            EditorColorsManager.getInstance().globalScheme.getColor(EditorColors.SELECTION_BACKGROUND_COLOR),
+            UIUtil.getTableSelectionBackground(true)
+        )
     }
 
-    fun getEditorBackground(): Color {
-        return EditorColorsManager.getInstance().globalScheme.defaultBackground
+    fun getTableBackground(): Color {
+        return ObjectUtils.chooseNotNull(
+            EditorColorsManager.getInstance().globalScheme.defaultBackground,
+            UIUtil.getTableBackground()
+        )
     }
 }
