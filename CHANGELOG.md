@@ -2,6 +2,7 @@ Change Log
 ----------
 ## Version 0.2.3
 - \#10 Fix fatal Error on invalid HTTP host
+- \#11 Fix KotlinNullPointerException at MyUIUtils.getPropertiesTableHeaderColor
 
 
 ## Version 0.2.2

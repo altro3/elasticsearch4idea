@@ -37,7 +37,7 @@ class ResultTableCellRenderer : ColoredTableCellRenderer() {
         background = when {
             table?.isCellSelected(row, column) == true -> MyUIUtils.getSelectedCellColor()
             table?.isRowSelected(row) == true -> MyUIUtils.getSelectedLineColor()
-            else -> MyUIUtils.getEditorBackground()
+            else -> MyUIUtils.getTableBackground()
         }
 
         if (value == null) {
